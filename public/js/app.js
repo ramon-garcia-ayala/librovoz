@@ -182,12 +182,7 @@ const App = {
   }
 };
 
-// Advertir si hay datos sin guardar
-window.addEventListener('beforeunload', (e) => {
-  if (App.state.bookPages.length > 0 && App.state.chapters.length === 0) {
-    e.preventDefault();
-    e.returnValue = '';
-  }
-});
+// Sin warning de beforeunload: el procesamiento persiste a IndexedDB tras cada
+// página, así que cerrar el tab es seguro. Se reanuda desde biblioteca.
 
 document.addEventListener('DOMContentLoaded', () => App.init());

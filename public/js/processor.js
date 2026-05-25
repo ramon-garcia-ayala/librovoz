@@ -1,7 +1,16 @@
 // LibroVoz - Pipeline de procesamiento (Tesseract local + Claude para chapters/cover)
 const Processor = {
-  // Si vino de PDF nativo, no preguntar capítulos (auto)
+  // Si viene de un libro en proceso (resume), saltar modal y continuar
   async init() {
+    // Si estamos reanudando un libro en proceso
+    if (App.state._resumingBookId) {
+      const restored = await this._restoreFromBook(App.state._resumingBookId);
+      if (restored) {
+        this._runPipeline();
+        return;
+      }
+    }
+
     // Si ya viene del PDF con texto, saltar el modal
     if (App.state._prefetchedFullText) {
       App.state._chapterHint = 'auto';
@@ -13,9 +22,99 @@ const Processor = {
     if (modal) {
       modal.classList.add('visible');
     } else {
-      // Sin modal disponible (carga vieja de partial?) → auto
       App.state._chapterHint = 'auto';
       this._runPipeline();
+    }
+  },
+
+  // Restaurar libro en proceso desde IndexedDB
+  async _restoreFromBook(bookId) {
+    try {
+      const book = await DB.get(bookId);
+      if (!book || !book.isProcessing) return false;
+
+      App.state.coverImage = book._rawCover || null;
+      App.state.coverThumbnail = book.coverThumbnail || null;
+      App.state.coverInfo = book.coverInfo || { title: book.title, author: book.author, subtitle: book.subtitle || '' };
+      App.state.indexPages = book._rawIndex || [];
+      App.state.bookPages = book._rawPages || [];
+      App.state.fullText = book.fullText || '';
+      App.state.indexText = book.indexText || '';
+      App.state.chapters = book.chapters || [];
+      App.state._chapterHint = book.chapterHint || 'auto';
+      App.setLoadedBookId(book.id);
+
+      // Restaurar progreso de OCR si existe
+      if (book._pageMetadata && Array.isArray(book._pageMetadata)) {
+        OCR.pageMetadata = book._pageMetadata;
+      }
+      App.state._resumeFromPhase = book.processingPhase || 'tesseract';
+      App.state._resumeFromIndex = book.processingPageIndex || 0;
+      return true;
+    } catch (err) {
+      console.error('Error restaurando libro en proceso:', err);
+      return false;
+    }
+  },
+
+  // Guardar snapshot del libro en proceso. Se llama periódicamente.
+  async _saveSnapshot(opts) {
+    const {
+      phase = 'tesseract',
+      pageIndex = 0,
+      done = false
+    } = opts || {};
+
+    try {
+      const existingId = App.state._loadedBookId;
+      const existing = existingId ? await DB.get(existingId) : null;
+
+      const tier = existing?.tier || (await Quota.getBookTier()) || 'free';
+      const thumbnail = App.state.coverImage
+        ? await Utils.createThumbnail(App.state.coverImage)
+        : (App.state.coverThumbnail || null);
+
+      const book = {
+        ...(existing || {}),
+        id: existingId || ('book_' + Date.now()),
+        title: App.state.coverInfo?.title || existing?.title || 'Procesando...',
+        author: App.state.coverInfo?.author || existing?.author || '',
+        subtitle: App.state.coverInfo?.subtitle || existing?.subtitle || '',
+        coverThumbnail: thumbnail,
+        coverInfo: App.state.coverInfo,
+        chapters: App.state.chapters || [],
+        fullText: App.state.fullText || '',
+        indexText: App.state.indexText || '',
+        processingMode: App.state.processingMode || 'literal',
+        voiceName: existing?.voiceName || null,
+        voiceLang: existing?.voiceLang || 'es-ES',
+        tier,
+        summaryAvailable: tier === 'paid',
+        chatHistory: existing?.chatHistory || [],
+        chapterHint: App.state._chapterHint,
+        isProcessing: !done,
+        isDraft: done && (!existing || existing.isDraft !== false),
+        processingPhase: phase,
+        processingPageIndex: pageIndex,
+        _pageMetadata: !done ? OCR.pageMetadata : null,
+        _rawPages: !done ? App.state.bookPages : null,
+        _rawIndex: !done ? App.state.indexPages : null,
+        _rawCover: !done ? App.state.coverImage : null,
+        savedAt: existing?.savedAt || new Date().toISOString(),
+        lastPlayedAt: new Date().toISOString()
+      };
+
+      const isFirstSave = !existingId;
+      await DB.save(book);
+      App.setLoadedBookId(book.id);
+
+      // Solo consumir cuota en el primer save (cuando inicia procesamiento)
+      if (isFirstSave) {
+        await Quota.consumeBook();
+      }
+      return book;
+    } catch (err) {
+      console.error('Error guardando snapshot:', err);
     }
   },
 
@@ -193,17 +292,26 @@ const Processor = {
     }
 
     try {
-      // 1. Portada (Claude vision con imagen chica 1024px) + Índice (Tesseract local) en paralelo
-      setProgress(5, 'Analizando portada e índice...', '');
+      // 0. Save inicial: persistir libro como 'en proceso' (sobrevive cierre de tab)
+      await this._saveSnapshot({ phase: 'init', pageIndex: 0 });
 
-      const coverSmall = await Utils.resizeImageForCover(App.state.coverImage);
-      const [coverInfo, indexText] = await Promise.all([
-        OCR.processCover(coverSmall),
-        OCR.processIndex(App.state.indexPages)
-      ]);
-
-      App.state.coverInfo = coverInfo;
-      App.state.indexText = indexText;
+      // 1. Portada + índice — solo si no veníamos resumiendo
+      if (!App.state.coverInfo?.title || App.state._resumeFromPhase === 'init') {
+        setProgress(5, 'Analizando portada e índice...', '');
+        const coverSmall = await Utils.resizeImageForCover(App.state.coverImage);
+        const [coverInfo, indexText] = await Promise.all([
+          OCR.processCover(coverSmall),
+          OCR.processIndex(App.state.indexPages)
+        ]);
+        App.state.coverInfo = coverInfo;
+        App.state.indexText = indexText;
+        await this._saveSnapshot({ phase: 'cover_done', pageIndex: 0 });
+      } else {
+        const coverInfo = App.state.coverInfo;
+        const indexText = App.state.indexText;
+        setProgress(10, 'Reanudando procesamiento...', '');
+      }
+      const coverInfo = App.state.coverInfo;
 
       if (titleEl) titleEl.textContent = coverInfo.title;
       if (authorEl) authorEl.textContent = coverInfo.author;
@@ -219,30 +327,44 @@ const Processor = {
       } else {
         const total = App.state.bookPages.length;
 
-        // Pase 1: Tesseract local
-        setProgress(15, 'Leyendo páginas en tu dispositivo...', `0 de ${total}`);
-        await OCR.tesseractPass((current, total) => {
+        // Pase 1: Tesseract local (con persistencia tras cada página)
+        const startTess = (App.state._resumeFromPhase === 'tesseract')
+          ? (App.state._resumeFromIndex || 0) : 0;
+        if (startTess > 0) {
+          App.showToast(`Continuando desde página ${startTess + 1}`, 'info');
+        }
+        setProgress(15, 'Leyendo páginas en tu dispositivo...', `${startTess} de ${total}`);
+        await OCR.tesseractPass(async (current, total) => {
           const pct = 15 + Math.round((current / total) * 30);
           setProgress(pct, 'Leyendo páginas en tu dispositivo...', `${current} de ${total}`);
-        });
+          // Persistir progreso cada 3 páginas para minimizar I/O
+          if (current % 3 === 0 || current === total) {
+            await this._saveSnapshot({ phase: 'tesseract', pageIndex: current });
+          }
+        }, startTess);
 
-        // Quality gate: bloquear/avisar si las fotos están terribles
+        await this._saveSnapshot({ phase: 'tesseract_done', pageIndex: total });
+
+        // Quality gate
         const gateResult = await this.runQualityGate();
         if (gateResult === 'cancel') {
           App.go('scanner');
           return;
         }
-        // Si fue 'retake', el usuario reemplazó páginas malas; ya están re-procesadas
-        // Si fue 'continue', seguimos con lo que hay
 
-        // Pase 2: Claude fallback para páginas que aún no superan el umbral
+        // Pase 2: Claude fallback
         setProgress(50, 'Mejorando páginas con IA cuando es necesario...', '');
-        App.state.fullText = await OCR.claudeFallbackPass((current, total, meta, fallbackCount, figuresCount) => {
+        App.state.fullText = await OCR.claudeFallbackPass(async (current, total, meta, fallbackCount, figuresCount) => {
           const pct = 50 + Math.round((current / total) * 15);
           const aiLabel = fallbackCount > 0 ? ` · ${fallbackCount} con IA` : '';
           const figLabel = figuresCount > 0 ? ` · ${figuresCount} figura${figuresCount !== 1 ? 's' : ''}` : '';
           setProgress(pct, 'Procesando páginas...', `${current} de ${total}${aiLabel}${figLabel}`);
+          if (current % 3 === 0 || current === total) {
+            await this._saveSnapshot({ phase: 'claude', pageIndex: current });
+          }
         });
+
+        await this._saveSnapshot({ phase: 'claude_done', pageIndex: total });
 
         // 2.5 Post-clean condicional: si el OCR tuvo mucha basura, llamar Claude
         const quality = OCR.computeQualityScore();

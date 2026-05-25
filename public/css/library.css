@@ -215,6 +215,26 @@
   border-left: 3px solid var(--color-accent);
 }
 
+/* Libros en procesamiento (interrumpidos, reanudables) */
+.library-book-processing {
+  border-left: 3px solid var(--color-warning);
+}
+
+.library-book-meta-processing {
+  color: var(--color-warning);
+  font-weight: var(--font-weight-medium);
+}
+
+.library-book-progress-processing .library-book-progress-fill {
+  background: var(--color-warning);
+  animation: pulse-progress 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse-progress {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 /* Barra de progreso */
 .library-book-progress {
   height: 3px;

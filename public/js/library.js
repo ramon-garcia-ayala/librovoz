@@ -55,9 +55,22 @@ const Library = {
       const progress = book.currentChapter || 0;
       const pct = chapters > 0 ? Math.round((progress / chapters) * 100) : 0;
       const isDraft = book.isDraft === true;
+      const isProcessing = book.isProcessing === true;
+
+      // Calcular % de procesamiento si está en curso
+      let procPct = 0;
+      let procLabel = '';
+      if (isProcessing) {
+        const totalPages = (book._rawPages || []).length || 1;
+        const donePages = book.processingPageIndex || 0;
+        procPct = Math.min(95, Math.round((donePages / totalPages) * 100));
+        procLabel = `Procesando ${donePages}/${totalPages} · toca para reanudar`;
+      }
+
+      const cardClass = isProcessing ? 'library-book-processing' : (isDraft ? 'library-book-draft' : '');
 
       return `
-        <div class="library-book ${isDraft ? 'library-book-draft' : ''}" onclick="Library.open('${book.id}')">
+        <div class="library-book ${cardClass}" onclick="Library.open('${book.id}')">
           <div class="library-book-cover">
             ${book.coverThumbnail
               ? `<img src="${book.coverThumbnail}" alt="Portada">`
@@ -69,11 +82,16 @@ const Library = {
           <div class="library-book-info">
             <h3 class="library-book-title">${book.title || 'Sin título'}</h3>
             <p class="library-book-author">${book.author || ''}</p>
-            ${isDraft
-              ? `<p class="library-book-meta library-book-meta-draft">Sin terminar — toca para elegir voz</p>`
-              : `<p class="library-book-meta">${chapters} capítulo${chapters !== 1 ? 's' : ''}</p>`
+            ${isProcessing
+              ? `<p class="library-book-meta library-book-meta-processing">${procLabel}</p>
+                 <div class="library-book-progress library-book-progress-processing">
+                   <div class="library-book-progress-fill" style="width:${procPct}%"></div>
+                 </div>`
+              : isDraft
+                ? `<p class="library-book-meta library-book-meta-draft">Sin terminar — toca para elegir voz</p>`
+                : `<p class="library-book-meta">${chapters} capítulo${chapters !== 1 ? 's' : ''}</p>`
             }
-            ${!isDraft && pct > 0 ? `
+            ${!isDraft && !isProcessing && pct > 0 ? `
               <div class="library-book-progress">
                 <div class="library-book-progress-fill" style="width:${pct}%"></div>
               </div>
@@ -183,6 +201,13 @@ const Library = {
     App.setLoadedBookId(book.id);
     App.state._isDraft = book.isDraft === true;
     App.state._savedSpeed = book.speed || 1;
+
+    // Si está en proceso (interrumpido) → reanudar pipeline
+    if (book.isProcessing === true) {
+      App.state._resumingBookId = book.id;
+      App.go('processing');
+      return;
+    }
 
     // Si es draft (sin voz seleccionada) → ir a voices para terminar
     if (book.isDraft === true) {

@@ -53,11 +53,20 @@ const OCR = {
   },
 
   // Pase 1: Tesseract de TODAS las páginas (local, gratis, rápido)
-  // Llena pageMetadata con datos preliminares (source='tesseract'). No llama Claude.
-  async tesseractPass(onProgress) {
+  // startIndex: para resumir desde donde se interrumpió previamente
+  async tesseractPass(onProgress, startIndex) {
     const pages = App.state.bookPages;
-    this.pageMetadata = new Array(pages.length).fill(null);
-    for (let i = 0; i < pages.length; i++) {
+    const start = Math.max(0, startIndex || 0);
+    // Si pageMetadata no existe o es de otro libro, crearlo
+    if (!Array.isArray(this.pageMetadata) || this.pageMetadata.length !== pages.length) {
+      this.pageMetadata = new Array(pages.length).fill(null);
+    }
+    for (let i = start; i < pages.length; i++) {
+      // Si ya tenía un meta (resume), respetarlo si tiene texto
+      if (this.pageMetadata[i] && this.pageMetadata[i].text && this.pageMetadata[i].score > 0) {
+        if (onProgress) await onProgress(i + 1, pages.length);
+        continue;
+      }
       const tess = await TesseractOCR.recognize(pages[i]);
       this.pageMetadata[i] = {
         text: tess.text,
@@ -67,7 +76,7 @@ const OCR = {
         figures: 0,
         score: this._scorePage(tess.text, tess.confidence)
       };
-      if (onProgress) onProgress(i + 1, pages.length);
+      if (onProgress) await onProgress(i + 1, pages.length);
     }
   },
 
