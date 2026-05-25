@@ -1,5 +1,161 @@
 // LibroVoz - Pipeline de procesamiento (Tesseract local + Claude para chapters/cover)
 const Processor = {
+  // ── Background pipeline (fire-and-forget desde Scanner) ──────────────
+  // Crea el book en DB, dispara el pipeline sin bloquear, retorna.
+  async startBackground() {
+    App.state._chapterHint = 'auto';
+    App.state._autoMode = true;
+
+    // Captura los datos necesarios del estado actual (porque vamos a navegar)
+    const snapshot = {
+      coverImage: App.state.coverImage,
+      coverThumbnail: App.state.coverThumbnail,
+      coverInfo: { ...(App.state.coverInfo || {}) },
+      indexPages: [...(App.state.indexPages || [])],
+      bookPages: [...(App.state.bookPages || [])],
+      processingMode: 'literal'
+    };
+
+    // Disparar pipeline en background (NO await — corre paralelo)
+    this._runPipelineBg(snapshot).catch(err => {
+      console.error('Pipeline background error:', err);
+      App.showToast('Error procesando el libro', 'error');
+    });
+  },
+
+  // Pipeline non-blocking. Usa el snapshot de scanner (App.state puede cambiar).
+  async _runPipelineBg(snap) {
+    // Restaurar el snapshot en App.state para que OCR/Chapters/etc operen sobre él
+    App.state.coverImage = snap.coverImage;
+    App.state.coverThumbnail = snap.coverThumbnail;
+    App.state.coverInfo = snap.coverInfo;
+    App.state.indexPages = snap.indexPages;
+    App.state.bookPages = snap.bookPages;
+    App.state.processingMode = 'literal';
+    App.state._chapterHint = 'auto';
+
+    // Save inicial: crea el libro como isProcessing=true
+    await this._saveSnapshot({ phase: 'init', pageIndex: 0 });
+
+    try {
+      // 1. Portada + índice paralelos
+      const coverSmall = await Utils.resizeImageForCover(snap.coverImage);
+      const [coverInfo, indexText] = await Promise.all([
+        OCR.processCover(coverSmall),
+        OCR.processIndex(snap.indexPages)
+      ]);
+      App.state.coverInfo = coverInfo;
+      App.state.indexText = indexText;
+      await this._saveSnapshot({ phase: 'cover_done', pageIndex: 0 });
+
+      // 2. Tesseract pass (persiste cada 3 páginas)
+      const total = snap.bookPages.length;
+      await OCR.tesseractPass(async (current, total) => {
+        if (current % 3 === 0 || current === total) {
+          await this._saveSnapshot({ phase: 'tesseract', pageIndex: current });
+        }
+      }, 0);
+
+      // 3. Quality check sin bloqueo
+      const quality = OCR.computeQualityScore();
+      if (quality < 0.5) {
+        App.showToast('Algunas páginas se ven regular, pero seguimos procesando', 'info');
+      }
+
+      // 4. Claude fallback (auto, sin modal)
+      App.state.fullText = await OCR.claudeFallbackPass(async (current, total) => {
+        if (current % 3 === 0 || current === total) {
+          await this._saveSnapshot({ phase: 'claude', pageIndex: current });
+        }
+      });
+
+      // 5. Post-clean si quality bajo
+      const qualityAfter = OCR.computeQualityScore();
+      if (qualityAfter < OCR.QUALITY_THRESHOLD_FOR_POST_CLEAN) {
+        try {
+          const cleaned = await API.postClean(App.state.fullText);
+          if (cleaned && cleaned.text && cleaned.text.length > 100) {
+            App.state.fullText = cleaned.text;
+            OCR.pageMetadata = OCR.pageMetadata.map(m => ({ ...m, text: '' }));
+          }
+        } catch (err) {
+          console.warn('post-clean falló:', err);
+        }
+      }
+
+      // 6. Detect chapters (auto)
+      const hasPageGranularity = Array.isArray(OCR.pageMetadata)
+        && OCR.pageMetadata.length > 0
+        && OCR.pageMetadata.some(m => m && m.text);
+      const pages = hasPageGranularity
+        ? OCR.pageMetadata.map((m, i) => ({ num: i + 1, text: m?.text || '' }))
+        : null;
+      const detection = await Chapters.detect(App.state.fullText, App.state.indexText, pages, 'auto');
+      let builtChapters = Chapters.splitText(App.state.fullText, detection.chapters, pages, detection.junkPatterns);
+      builtChapters = Chapters.validateAndMerge(builtChapters);
+      App.state.chapters = builtChapters;
+
+      // 7. Auto-pick voz
+      let bestVoice = null;
+      try { bestVoice = await Voices.getBestVoice(); } catch {}
+      const voiceName = bestVoice ? bestVoice.name : null;
+      const voiceLang = bestVoice ? bestVoice.lang : 'es-ES';
+
+      // 8. Finalizar: marcar el libro como listo en DB
+      const bookId = App.state._loadedBookId;
+      const existing = bookId ? await DB.get(bookId) : null;
+      const thumbnail = App.state.coverImage
+        ? await Utils.createThumbnail(App.state.coverImage)
+        : (existing?.coverThumbnail || null);
+
+      const finalBook = {
+        ...(existing || {}),
+        id: bookId || ('book_' + Date.now()),
+        title: App.state.coverInfo?.title || existing?.title || 'Sin título',
+        author: App.state.coverInfo?.author || existing?.author || '',
+        subtitle: App.state.coverInfo?.subtitle || existing?.subtitle || '',
+        coverThumbnail: thumbnail,
+        chapters: App.state.chapters,
+        fullText: App.state.fullText,
+        processingMode: 'literal',
+        voiceName,
+        voiceLang,
+        currentChapter: 0,
+        speed: 1,
+        isProcessing: false,
+        isDraft: false,
+        chatHistory: existing?.chatHistory || [],
+        // Limpiar campos pesados que ya no necesitamos
+        _rawPages: null,
+        _rawIndex: null,
+        _rawCover: null,
+        _pageMetadata: null,
+        processingPhase: 'done',
+        savedAt: existing?.savedAt || new Date().toISOString(),
+        lastPlayedAt: new Date().toISOString()
+      };
+      await DB.save(finalBook);
+
+      const title = finalBook.title || 'tu libro';
+      App.showToast(`"${title}" está listo`, 'info');
+    } catch (err) {
+      console.error('Pipeline error:', err);
+      // Marca el libro como con error pero conserva lo que tenga
+      const bookId = App.state._loadedBookId;
+      if (bookId) {
+        try {
+          const b = await DB.get(bookId);
+          if (b) {
+            b.isProcessing = false;
+            b.processingError = err.message || 'Error desconocido';
+            await DB.save(b);
+          }
+        } catch {}
+      }
+      App.showToast('Hubo un error procesando. Revisa biblioteca.', 'error');
+    }
+  },
+
   // Si viene de un libro en proceso (resume), saltar modal y continuar
   async init() {
     // Si estamos reanudando un libro en proceso

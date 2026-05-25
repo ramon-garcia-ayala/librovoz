@@ -1,5 +1,8 @@
 // LibroVoz - Biblioteca de libros guardados
 const Library = {
+  _pollTimer: null,
+  _lastSnapshot: {},  // bookId → isProcessing flag previo, para detectar transición
+
   async init() {
     const books = await DB.getAll();
     const grid = document.getElementById('library-grid');
@@ -13,6 +16,7 @@ const Library = {
     if (books.length === 0) {
       if (grid) grid.style.display = 'none';
       if (empty) empty.style.display = 'flex';
+      this._stopPolling();
       return;
     }
 
@@ -20,6 +24,56 @@ const Library = {
     if (empty) empty.style.display = 'none';
 
     this.renderBooks(books);
+    this._refreshSnapshot(books);
+
+    // Si hay libros procesando, arrancar polling (sin duplicar timer)
+    const hasProcessing = books.some(b => b.isProcessing === true);
+    if (hasProcessing) {
+      this._startPolling();
+    } else {
+      this._stopPolling();
+    }
+  },
+
+  _refreshSnapshot(books) {
+    const newSnap = {};
+    for (const b of books) newSnap[b.id] = !!b.isProcessing;
+    this._lastSnapshot = newSnap;
+  },
+
+  _startPolling() {
+    if (this._pollTimer) return;
+    this._pollTimer = setInterval(async () => {
+      // Si el usuario ya navegó fuera de library, parar
+      if (App.currentScreen !== 'library') {
+        this._stopPolling();
+        return;
+      }
+
+      const books = await DB.getAll();
+
+      // Detectar transiciones isProcessing=true → false (libro recién listo)
+      for (const b of books) {
+        const wasProcessing = this._lastSnapshot[b.id];
+        if (wasProcessing === true && b.isProcessing === false) {
+          App.showToast(`"${b.title || 'Tu libro'}" está listo`, 'info');
+        }
+      }
+
+      this.renderBooks(books);
+      this._refreshSnapshot(books);
+
+      // Si ya no hay procesando, parar el polling
+      const stillProcessing = books.some(b => b.isProcessing === true);
+      if (!stillProcessing) this._stopPolling();
+    }, 1500);
+  },
+
+  _stopPolling() {
+    if (this._pollTimer) {
+      clearInterval(this._pollTimer);
+      this._pollTimer = null;
+    }
   },
 
   async renderQuotaBadge() {

@@ -450,8 +450,23 @@ const Scanner = {
           App.showToast('Captura al menos una página', 'error');
           return;
         }
-        App.go('processing');
+        // Pipeline 100% automático: arranca en background y vamos a biblioteca
+        this._finishToLibrary();
         break;
+    }
+  },
+
+  async _finishToLibrary() {
+    try {
+      App.showToast('Procesando tu libro en la biblioteca', 'info');
+      // startBackground crea el book en DB con isProcessing=true y dispara pipeline
+      await Processor.startBackground();
+      // Destruir cámara y volver a biblioteca; el pipeline corre solo
+      await this.destroy();
+      App.go('library');
+    } catch (err) {
+      console.error('Error iniciando procesamiento:', err);
+      App.showToast('Error iniciando el procesamiento', 'error');
     }
   },
 

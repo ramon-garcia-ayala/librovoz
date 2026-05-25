@@ -76,6 +76,32 @@ const Voices = {
     return tags;
   },
 
+  // Devuelve la voz top-ranked sin requerir UI (para pipeline auto)
+  async getBestVoice() {
+    // Esperar a que cargue si aún no
+    let voices = speechSynthesis.getVoices();
+    if (voices.length === 0) {
+      await new Promise(resolve => {
+        let tries = 0;
+        const check = () => {
+          voices = speechSynthesis.getVoices();
+          if (voices.length > 0 || tries > 20) return resolve();
+          tries++;
+          setTimeout(check, 100);
+        };
+        check();
+      });
+      voices = speechSynthesis.getVoices();
+    }
+    const es = voices.filter(v => (v.lang || '').startsWith('es'));
+    const pool = es.length > 0 ? es : voices;
+    if (pool.length === 0) return null;
+    const ranked = pool
+      .map(v => ({ voice: v, score: this._qualityScore(v) }))
+      .sort((a, b) => b.score - a.score);
+    return ranked[0].voice;
+  },
+
   // Etiqueta de género por nombre (heurística simple)
   _voiceGender(voice) {
     const name = (voice.name || '').toLowerCase();
