@@ -1034,12 +1034,42 @@
   color: var(--color-text-secondary);
 }
 
-/* Grid 2x2 responsive */
+/* Grid responsive: 2 columnas mobile, más en desktop */
 .voices-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: var(--space-4);
   margin-bottom: var(--space-8);
+}
+
+@media (min-width: 600px) {
+  .voices-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 900px) {
+  .voices-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Tags de calidad/local en cards de voz */
+.voice-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+}
+
+.voice-tag {
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  letter-spacing: 0.02em;
 }
 
 .voice-card {

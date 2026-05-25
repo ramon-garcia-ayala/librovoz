@@ -18,56 +18,70 @@ const Voices = {
     const spanishVoices = allVoices.filter(v => v.lang.startsWith('es'));
 
     if (spanishVoices.length === 0 && allVoices.length === 0) {
-      // Todavía cargando, esperar
-      return;
+      return; // todavía cargando
     }
 
-    // Intentar seleccionar hasta 4 voces variadas
-    let selected = [];
-
-    if (spanishVoices.length > 0) {
-      // Clasificar por nombre como heurística de género
-      const masc = spanishVoices.filter(v =>
-        /jorge|carlos|pablo|diego|andrés|enrique|juan|miguel|pedro|antonio|male|hombre/i.test(v.name)
-      );
-      const fem = spanishVoices.filter(v =>
-        /mónica|paulina|elena|lucia|carmen|rosa|maria|female|mujer|conchita|penelope/i.test(v.name)
-      );
-      const others = spanishVoices.filter(v => !masc.includes(v) && !fem.includes(v));
-
-      // Tomar hasta 2 de cada tipo
-      selected = [
-        ...fem.slice(0, 2),
-        ...masc.slice(0, 2)
-      ];
-
-      // Si no hay suficientes, rellenar con others
-      if (selected.length < 4) {
-        for (const v of others) {
-          if (selected.length >= 4) break;
-          if (!selected.includes(v)) selected.push(v);
-        }
-      }
-
-      // Si aún no hay suficientes, rellenar con cualquier español
-      if (selected.length < 4) {
-        for (const v of spanishVoices) {
-          if (selected.length >= 4) break;
-          if (!selected.includes(v)) selected.push(v);
-        }
-      }
+    let pool = spanishVoices.length > 0 ? spanishVoices : allVoices;
+    if (spanishVoices.length === 0) {
+      App.showToast('No se encontraron voces en español. Mostrando todas las disponibles.', 'info');
     }
 
-    // Si no hay voces en español, tomar las primeras 4 disponibles
-    if (selected.length === 0) {
-      selected = allVoices.slice(0, 4);
-      if (selected.length > 0) {
-        App.showToast('No se encontraron voces en español. Mostrando voces disponibles.', 'info');
-      }
-    }
+    // Rankear por calidad: premium/neural/google/natural primero, locales después
+    const ranked = pool
+      .map(v => ({ voice: v, score: this._qualityScore(v) }))
+      .sort((a, b) => b.score - a.score)
+      .map(x => x.voice);
 
-    this.voices = selected;
+    // De-duplicar por nombre (algunos motores reportan duplicados)
+    const seen = new Set();
+    this.voices = ranked.filter(v => {
+      const key = (v.name || '') + '|' + (v.lang || '');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
     this.renderVoices();
+  },
+
+  // Heurística para ordenar voces de mejor a peor calidad
+  _qualityScore(voice) {
+    const name = (voice.name || '').toLowerCase();
+    let score = 0;
+
+    // Calidad alta: Google neural, premium, natural, enhanced
+    if (/(neural|premium|natural|enhanced|wavenet|studio|hd)/i.test(name)) score += 10;
+    if (/google/i.test(name)) score += 5;
+    if (/(microsoft|samsung)/i.test(name)) score += 3;
+
+    // Locales suelen ser mejores que remotos
+    if (voice.localService) score += 2;
+
+    // Penalizar voces "compact" (suelen ser peores en iOS)
+    if (/compact/i.test(name)) score -= 3;
+
+    // Priorizar es-MX, es-US (más comunes en LATAM) ligeramente sobre otros
+    const lang = (voice.lang || '').toLowerCase();
+    if (lang === 'es-mx' || lang === 'es-us') score += 1;
+
+    return score;
+  },
+
+  // Etiqueta amigable para mostrar en cada card
+  _voiceTags(voice) {
+    const name = (voice.name || '').toLowerCase();
+    const tags = [];
+    if (/(neural|wavenet|natural|studio|premium|enhanced|hd)/i.test(name)) tags.push('Alta calidad');
+    if (voice.localService) tags.push('Local');
+    return tags;
+  },
+
+  // Etiqueta de género por nombre (heurística simple)
+  _voiceGender(voice) {
+    const name = (voice.name || '').toLowerCase();
+    if (/female|mujer|mónica|paulina|elena|lucia|carmen|rosa|maria|conchita|penelope|sofia|esperanza|helena|laura|isabela|camila/i.test(name)) return 'F';
+    if (/male|hombre|jorge|carlos|pablo|diego|andrés|enrique|juan|miguel|pedro|antonio|alvaro|raul|sebastian/i.test(name)) return 'M';
+    return null;
   },
 
   renderVoices() {
@@ -84,19 +98,29 @@ const Voices = {
       return;
     }
 
-    const colors = ['#007AFF', '#FF9500', '#34C759', '#AF52DE'];
-    grid.innerHTML = this.voices.map((voice, i) => `
-      <div class="card voice-card" id="voice-${i}" onclick="Voices.select(${i})">
-        <svg viewBox="0 0 48 48" width="48" height="48" fill="none">
-          <circle cx="24" cy="16" r="10" fill="${colors[i % colors.length]}" opacity="0.2"/>
-          <circle cx="24" cy="16" r="6" fill="${colors[i % colors.length]}" opacity="0.5"/>
-          <path d="M12 38c0-6 5-10 12-10s12 4 12 10" fill="${colors[i % colors.length]}" opacity="0.15"/>
-        </svg>
-        <h4 class="voice-name">${voice.name.replace(/\(.*\)/, '').trim()}</h4>
-        <p class="voice-lang">${voice.lang}</p>
-        <button class="btn voice-preview" onclick="event.stopPropagation(); Voices.preview(${i})">Escuchar</button>
-      </div>
-    `).join('');
+    const colors = ['#8BA3B8', '#A89BB8', '#9AB0A0', '#B8A28B'];
+    grid.innerHTML = this.voices.map((voice, i) => {
+      const cleanName = (voice.name || '').replace(/\(.*\)/, '').trim() || 'Voz';
+      const gender = this._voiceGender(voice);
+      const tags = this._voiceTags(voice);
+      const color = colors[i % colors.length];
+
+      return `
+        <div class="card voice-card" id="voice-${i}" onclick="Voices.select(${i})">
+          <svg viewBox="0 0 48 48" width="44" height="44" fill="none">
+            <circle cx="24" cy="16" r="10" fill="${color}" opacity="0.25"/>
+            <circle cx="24" cy="16" r="6" fill="${color}" opacity="0.55"/>
+            <path d="M12 38c0-6 5-10 12-10s12 4 12 10" fill="${color}" opacity="0.18"/>
+          </svg>
+          <h4 class="voice-name">${cleanName}</h4>
+          <p class="voice-lang">${voice.lang}${gender ? ' · ' + gender : ''}</p>
+          ${tags.length > 0
+            ? `<div class="voice-tags">${tags.map(t => `<span class="voice-tag">${t}</span>`).join('')}</div>`
+            : ''}
+          <button class="btn voice-preview" onclick="event.stopPropagation(); Voices.preview(${i})">Escuchar</button>
+        </div>
+      `;
+    }).join('');
 
     document.getElementById('btn-voices-continue').style.display = 'none';
   },
