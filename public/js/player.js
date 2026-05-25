@@ -1,4 +1,12 @@
 // LibroVoz - Reproductor estilo Spotify Lyrics + Karaoke
+//
+// Arquitectura robusta:
+// - El capítulo se divide en SEGMENTOS de ~180 chars (por oración).
+// - Cada segmento es su propia SpeechSynthesisUtterance.
+// - Al terminar uno, dispara el siguiente. Esto evita el freeze por utterance larga.
+// - Karaoke usa onboundary; si no dispara (Android común), un timer estima la posición
+//   con base en velocidad asumida de 150 wpm * speed.
+// - jumpToWord / rewind reconstruyen segmentos desde la posición target.
 const Player = {
   synth: window.speechSynthesis,
   utterance: null,
@@ -16,17 +24,25 @@ const Player = {
   totalChars: 0,
   chapterText: '',
 
+  // Playback state
+  segments: [],
+  currentSegmentIndex: 0,
+  segmentStartTime: 0,
+  lastBoundaryAt: 0,
+  fallbackTimer: null,
+  watchdogTimer: null,
+
   // Scroll state
   autoScroll: true,
-  scrollTimer: null,
 
-  // Chrome bug fix
-  chromeBugInterval: null,
+  // Tunables
+  SEGMENT_MAX_CHARS: 180,
+  BASE_WPM: 150,
+  WATCHDOG_INTERVAL: 1500, // ms para detectar speech atascado
 
   init() {
     this.currentChapter = App.state.currentChapter || 0;
 
-    // Restaurar velocidad si viene de libro guardado
     const savedSpeed = App.state._savedSpeed || 1;
     this.speedIndex = this.speeds.indexOf(savedSpeed);
     if (this.speedIndex < 0) this.speedIndex = 1;
@@ -36,9 +52,8 @@ const Player = {
     this.setupChapterTabs();
     this.loadChapter(this.currentChapter);
     this.setupScrollDetection();
-    this.startChromeBugFix();
+    this.startWatchdog();
 
-    // Mostrar velocidad restaurada
     const btn = document.getElementById('btn-speed');
     if (btn) btn.textContent = this.speed + 'x';
   },
@@ -73,10 +88,8 @@ const Player = {
   },
 
   loadChapter(index) {
-    // Detener reproducción actual
     this.stop();
 
-    // Milestone microcopy al cambiar de capítulo (no en la carga inicial)
     if (typeof Microcopy !== 'undefined' && this.currentChapter !== index && index > 0) {
       const phrase = Microcopy.pickSync('milestone');
       if (phrase && App && App.showToast) App.showToast(phrase, 'info');
@@ -84,8 +97,6 @@ const Player = {
 
     this.currentChapter = index;
     App.state.currentChapter = index;
-
-    // Guardar progreso si es libro guardado
     this.saveProgress();
 
     const chapter = App.state.chapters[index];
@@ -93,23 +104,74 @@ const Player = {
 
     this.chapterText = chapter.text;
 
-    // Actualizar info
     const chapterEl = document.getElementById('player-chapter');
     if (chapterEl) {
       chapterEl.textContent = `Cap. ${index + 1} de ${App.state.chapters.length} — ${chapter.title}`;
     }
 
-    // Actualizar tabs activas
     document.querySelectorAll('.player-chapter-tab').forEach((tab, i) => {
       tab.classList.toggle('active', i === index);
     });
 
-    // Construir karaoke
     this.buildLyrics(this.chapterText);
-
-    // Reset progreso
+    this.segments = this.splitIntoSegments(this.chapterText);
+    this.currentSegmentIndex = 0;
+    this.currentWordIndex = 0;
     this.updateProgress(0);
     this.updatePlayIcon(false);
+  },
+
+  // Divide el texto en segmentos pequeños para utterances cortas.
+  // Cada segment: { text, charStart } (charStart = offset en chapterText)
+  splitIntoSegments(text, maxLen) {
+    const max = maxLen || this.SEGMENT_MAX_CHARS;
+    // Romper por oración (preserva puntuación)
+    const sentences = text.match(/[^.!?\n]+[.!?]+["»']?|\S+[^.!?\n]*/g) || [text];
+
+    const result = [];
+    let current = '';
+
+    for (const s of sentences) {
+      const trimmed = s.trim();
+      if (!trimmed) continue;
+
+      // Si la oración SOLA ya excede el máximo, hay que partirla por palabras
+      if (trimmed.length > max) {
+        if (current) {
+          result.push(current.trim());
+          current = '';
+        }
+        const words = trimmed.split(/\s+/);
+        let chunk = '';
+        for (const w of words) {
+          if ((chunk + ' ' + w).length > max && chunk) {
+            result.push(chunk.trim());
+            chunk = w;
+          } else {
+            chunk = chunk ? chunk + ' ' + w : w;
+          }
+        }
+        if (chunk) current = chunk;
+        continue;
+      }
+
+      if ((current + ' ' + trimmed).length > max && current) {
+        result.push(current.trim());
+        current = trimmed;
+      } else {
+        current = current ? current + ' ' + trimmed : trimmed;
+      }
+    }
+    if (current.trim()) result.push(current.trim());
+
+    // Calcular charStart de cada segmento dentro del texto original
+    let pos = 0;
+    return result.map(segText => {
+      const idx = text.indexOf(segText, pos);
+      const charStart = idx !== -1 ? idx : pos;
+      pos = charStart + segText.length;
+      return { text: segText, charStart };
+    });
   },
 
   buildLyrics(text) {
@@ -145,7 +207,6 @@ const Player = {
         return `<span class="word" data-word-index="${globalWordIndex - 1}" data-char-index="${actualCharIdx}">${w.word}</span>`;
       }).join(' ');
 
-      // Si la oración completa es un marcador de figura → estilizar como bloque distinto
       const isFigure = FIGURE_RE.test(sentence.trim());
       const lineClass = isFigure ? 'lyric-line lyric-figure future' : 'lyric-line future';
 
@@ -154,163 +215,300 @@ const Player = {
 
     this.totalChars = text.length;
 
-    // Click en palabra para saltar
-    container.addEventListener('click', (e) => {
-      const wordEl = e.target.closest('.word');
-      if (wordEl) {
-        const wordIndex = parseInt(wordEl.dataset.wordIndex);
-        this.jumpToWord(wordIndex);
-      }
-    });
-  },
-
-  createUtterance(text, startOffset) {
-    const utt = new SpeechSynthesisUtterance(text);
-
-    if (App.state.selectedVoice) {
-      utt.voice = App.state.selectedVoice;
-    }
-    utt.lang = 'es-ES';
-    utt.rate = this.speed;
-
-    utt.onboundary = (e) => {
-      if (e.name === 'word') {
-        const charPos = (startOffset || 0) + e.charIndex;
-        this.highlightByCharIndex(charPos);
-      }
-    };
-
-    utt.onend = () => {
-      if (this.isPlaying) {
-        // Capítulo terminado, ir al siguiente si hay
-        if (this.currentChapter < App.state.chapters.length - 1) {
-          this.loadChapter(this.currentChapter + 1);
-          setTimeout(() => this.play(), 500);
-        } else {
-          this.isPlaying = false;
-          this.updatePlayIcon(false);
-          this.markAllPast();
+    // Click en palabra para saltar (delegación)
+    if (!container._clickWired) {
+      container.addEventListener('click', (e) => {
+        const wordEl = e.target.closest('.word');
+        if (wordEl) {
+          const wordIndex = parseInt(wordEl.dataset.wordIndex);
+          this.jumpToWord(wordIndex);
         }
-      }
-    };
-
-    utt.onerror = (e) => {
-      if (e.error !== 'canceled') {
-        console.error('Speech error:', e.error);
-        this.isPlaying = false;
-        this.updatePlayIcon(false);
-      }
-    };
-
-    return utt;
-  },
-
-  highlightByCharIndex(charPos) {
-    // Encontrar la palabra más cercana
-    let wordIdx = 0;
-    for (let i = 0; i < this.words.length; i++) {
-      if (this.words[i].charIndex <= charPos) {
-        wordIdx = i;
-      } else {
-        break;
-      }
-    }
-
-    this.currentWordIndex = wordIdx;
-    const sentenceIdx = this.words[wordIdx]?.sentenceIndex ?? 0;
-    this.currentSentenceIndex = sentenceIdx;
-
-    // Actualizar clases de palabras
-    document.querySelectorAll('.word').forEach((el, i) => {
-      el.classList.remove('active', 'past');
-      if (i < wordIdx) el.classList.add('past');
-      else if (i === wordIdx) el.classList.add('active');
-    });
-
-    // Actualizar clases de líneas
-    document.querySelectorAll('.lyric-line').forEach((el, i) => {
-      el.classList.remove('active', 'past', 'future');
-      if (i < sentenceIdx) el.classList.add('past');
-      else if (i === sentenceIdx) el.classList.add('active');
-      else el.classList.add('future');
-    });
-
-    // Auto-scroll
-    if (this.autoScroll) {
-      const activeLine = document.querySelector('.lyric-line.active');
-      if (activeLine) {
-        const lyricsContainer = document.getElementById('player-lyrics');
-        if (lyricsContainer) {
-          const lineTop = activeLine.offsetTop;
-          const containerHeight = lyricsContainer.clientHeight;
-          lyricsContainer.scrollTo({
-            top: lineTop - containerHeight / 3,
-            behavior: 'smooth'
-          });
-        }
-      }
-    }
-
-    // Actualizar progreso
-    if (this.words.length > 0) {
-      this.updateProgress((wordIdx / this.words.length) * 100);
+      });
+      container._clickWired = true;
     }
   },
 
-  jumpToWord(wordIndex) {
-    const word = this.words[wordIndex];
-    if (!word) return;
-
-    // Cancelar speech actual
-    this.synth.cancel();
-
-    // Obtener texto desde esta palabra en adelante
-    const remainingText = this.chapterText.substring(word.charIndex);
-
-    this.utterance = this.createUtterance(remainingText, word.charIndex);
-    this.isPlaying = true;
-    this.updatePlayIcon(true);
-    this.synth.speak(this.utterance);
-  },
+  // ══════════════════════════════════════════════════════════════════════
+  // PLAYBACK
+  // ══════════════════════════════════════════════════════════════════════
 
   play() {
-    if (this.synth.paused) {
+    // Resume from pause sin reiniciar el segmento
+    if (this.synth.paused && this.utterance) {
       this.synth.resume();
       this.isPlaying = true;
       this.updatePlayIcon(true);
       return;
     }
 
-    // Iniciar desde la posición actual
-    const startWord = this.words[this.currentWordIndex];
-    const startOffset = startWord ? startWord.charIndex : 0;
-    const text = this.chapterText.substring(startOffset);
+    // Iniciar desde la palabra actual: encontrar segmento que la contiene
+    const startWord = this.words[this.currentWordIndex] || this.words[0];
+    const startChar = startWord ? startWord.charIndex : 0;
 
-    this.utterance = this.createUtterance(text, startOffset);
+    // Reconstruir segmentos desde la posición actual
+    const remainingText = this.chapterText.substring(startChar);
+    const newSegments = this.splitIntoSegments(remainingText);
+    // Ajustar charStart al offset global del capítulo
+    for (const s of newSegments) {
+      s.charStart += startChar;
+    }
+    this.segments = newSegments;
+    this.currentSegmentIndex = 0;
+
     this.isPlaying = true;
     this.updatePlayIcon(true);
-    this.synth.speak(this.utterance);
+    this.playSegment(0);
+  },
+
+  playSegment(idx) {
+    if (!this.isPlaying) return;
+
+    if (idx >= this.segments.length) {
+      // Fin del capítulo
+      this.stopFallbackTimer();
+      this.markAllPast();
+      if (this.currentChapter < App.state.chapters.length - 1) {
+        this.loadChapter(this.currentChapter + 1);
+        setTimeout(() => this.play(), 400);
+      } else {
+        this.isPlaying = false;
+        this.updatePlayIcon(false);
+      }
+      return;
+    }
+
+    const seg = this.segments[idx];
+    this.currentSegmentIndex = idx;
+
+    const utt = new SpeechSynthesisUtterance(seg.text);
+    if (App.state.selectedVoice) utt.voice = App.state.selectedVoice;
+    utt.lang = (App.state.selectedVoice && App.state.selectedVoice.lang) || 'es-ES';
+    utt.rate = this.speed;
+    utt.pitch = 1;
+    utt.volume = 1;
+
+    this.segmentStartTime = Date.now();
+    this.lastBoundaryAt = Date.now();
+
+    utt.onboundary = (e) => {
+      if (e.name === 'word') {
+        this.lastBoundaryAt = Date.now();
+        this.highlightByCharIndex(seg.charStart + e.charIndex);
+      }
+    };
+
+    utt.onend = () => {
+      this.stopFallbackTimer();
+      if (!this.isPlaying) return;
+      // Pequeño breath entre segmentos para evitar choque en algunos motores
+      setTimeout(() => {
+        if (this.isPlaying) this.playSegment(idx + 1);
+      }, 30);
+    };
+
+    utt.onerror = (e) => {
+      this.stopFallbackTimer();
+      if (e.error === 'canceled' || e.error === 'interrupted') return;
+      console.warn('Speech error en segmento', idx, ':', e.error);
+      // Auto-recovery: saltar al siguiente segmento
+      setTimeout(() => {
+        if (this.isPlaying) this.playSegment(idx + 1);
+      }, 200);
+    };
+
+    this.utterance = utt;
+    this.synth.speak(utt);
+    this.startFallbackTimer(seg);
   },
 
   pause() {
-    this.synth.pause();
+    try { this.synth.pause(); } catch {}
     this.isPlaying = false;
+    this.stopFallbackTimer();
     this.updatePlayIcon(false);
   },
 
   stop() {
-    this.synth.cancel();
+    try { this.synth.cancel(); } catch {}
     this.isPlaying = false;
+    this.stopFallbackTimer();
     this.updatePlayIcon(false);
   },
 
   togglePlay() {
-    if (this.isPlaying) {
-      this.pause();
-    } else {
-      this.play();
+    if (this.isPlaying) this.pause();
+    else this.play();
+  },
+
+  // ══════════════════════════════════════════════════════════════════════
+  // NAVEGACIÓN POR TIEMPO/PALABRA
+  // ══════════════════════════════════════════════════════════════════════
+
+  jumpToWord(wordIndex) {
+    const word = this.words[wordIndex];
+    if (!word) return;
+
+    this.stop();
+    this.currentWordIndex = wordIndex;
+    this.highlightByCharIndex(word.charIndex);
+    this.isPlaying = true;
+    this.updatePlayIcon(true);
+    // Pequeño delay para que cancel termine completamente
+    setTimeout(() => {
+      const startChar = word.charIndex;
+      const remainingText = this.chapterText.substring(startChar);
+      const newSegments = this.splitIntoSegments(remainingText);
+      for (const s of newSegments) s.charStart += startChar;
+      this.segments = newSegments;
+      this.currentSegmentIndex = 0;
+      this.playSegment(0);
+    }, 80);
+  },
+
+  // Retroceder N segundos basado en velocidad asumida
+  rewind(seconds) {
+    const sec = seconds || 10;
+    const wpm = this.BASE_WPM * this.speed;
+    const wordsBack = Math.max(1, Math.floor((sec * wpm) / 60));
+    const newIndex = Math.max(0, this.currentWordIndex - wordsBack);
+    this.jumpToWord(newIndex);
+  },
+
+  forward(seconds) {
+    const sec = seconds || 10;
+    const wpm = this.BASE_WPM * this.speed;
+    const wordsForward = Math.max(1, Math.floor((sec * wpm) / 60));
+    const newIndex = Math.min(this.words.length - 1, this.currentWordIndex + wordsForward);
+    this.jumpToWord(newIndex);
+  },
+
+  // ══════════════════════════════════════════════════════════════════════
+  // KARAOKE HIGHLIGHT
+  // ══════════════════════════════════════════════════════════════════════
+
+  highlightByCharIndex(charPos) {
+    let wordIdx = 0;
+    for (let i = 0; i < this.words.length; i++) {
+      if (this.words[i].charIndex <= charPos) wordIdx = i;
+      else break;
+    }
+    this.setActiveWord(wordIdx);
+  },
+
+  setActiveWord(wordIdx) {
+    if (wordIdx === this.currentWordIndex && this._lastHighlightedIdx === wordIdx) return;
+    this._lastHighlightedIdx = wordIdx;
+
+    this.currentWordIndex = wordIdx;
+    const sentenceIdx = this.words[wordIdx]?.sentenceIndex ?? 0;
+    const sentenceChanged = sentenceIdx !== this.currentSentenceIndex;
+    this.currentSentenceIndex = sentenceIdx;
+
+    // Actualizar clases palabra-a-palabra usando query directo y rangos
+    const allWords = document.querySelectorAll('.word');
+    for (let i = 0; i < allWords.length; i++) {
+      const el = allWords[i];
+      if (i < wordIdx) {
+        if (!el.classList.contains('past')) {
+          el.classList.add('past');
+          el.classList.remove('active');
+        }
+      } else if (i === wordIdx) {
+        el.classList.add('active');
+        el.classList.remove('past');
+      } else {
+        el.classList.remove('active', 'past');
+      }
+    }
+
+    if (sentenceChanged) {
+      const allLines = document.querySelectorAll('.lyric-line');
+      for (let i = 0; i < allLines.length; i++) {
+        const el = allLines[i];
+        el.classList.remove('active', 'past', 'future');
+        if (i < sentenceIdx) el.classList.add('past');
+        else if (i === sentenceIdx) el.classList.add('active');
+        else el.classList.add('future');
+      }
+
+      if (this.autoScroll) this.scrollActiveIntoView();
+    }
+
+    if (this.words.length > 0) {
+      this.updateProgress((wordIdx / this.words.length) * 100);
     }
   },
+
+  scrollActiveIntoView() {
+    const activeLine = document.querySelector('.lyric-line.active');
+    if (!activeLine) return;
+    const lyricsContainer = document.getElementById('player-lyrics');
+    if (!lyricsContainer) return;
+    const lineTop = activeLine.offsetTop;
+    const containerHeight = lyricsContainer.clientHeight;
+    lyricsContainer.scrollTo({
+      top: lineTop - containerHeight / 3,
+      behavior: 'smooth'
+    });
+  },
+
+  // Timer que estima posición si onboundary no dispara (común en Android)
+  startFallbackTimer(segment) {
+    this.stopFallbackTimer();
+    const segWords = segment.text.split(/\s+/).filter(Boolean);
+    const totalWords = segWords.length;
+    if (totalWords === 0) return;
+
+    // Estimar duración del segmento en ms con base en velocidad
+    const wpm = this.BASE_WPM * this.speed;
+    const estimatedDurationMs = (totalWords / wpm) * 60 * 1000;
+    const msPerWord = estimatedDurationMs / totalWords;
+
+    // Posiciones char de cada palabra dentro del segmento
+    const wordCharOffsets = [];
+    let cursor = 0;
+    for (const w of segWords) {
+      const idx = segment.text.indexOf(w, cursor);
+      const actualIdx = idx !== -1 ? idx : cursor;
+      wordCharOffsets.push(actualIdx);
+      cursor = actualIdx + w.length;
+    }
+
+    this.fallbackTimer = setInterval(() => {
+      // Si onboundary disparó hace menos de 1.5s, no interferir
+      if (Date.now() - this.lastBoundaryAt < 1500) return;
+
+      const elapsedMs = Date.now() - this.segmentStartTime;
+      const elapsedWords = Math.min(totalWords - 1, Math.floor(elapsedMs / msPerWord));
+      const charOffset = wordCharOffsets[elapsedWords] ?? 0;
+      this.highlightByCharIndex(segment.charStart + charOffset);
+    }, 250);
+  },
+
+  stopFallbackTimer() {
+    if (this.fallbackTimer) {
+      clearInterval(this.fallbackTimer);
+      this.fallbackTimer = null;
+    }
+  },
+
+  // Watchdog que detecta speech "muerto" (sin progreso por mucho tiempo) y reinicia
+  startWatchdog() {
+    if (this.watchdogTimer) clearInterval(this.watchdogTimer);
+    this.watchdogTimer = setInterval(() => {
+      if (!this.isPlaying) return;
+      // Si pasaron 6 segundos desde el último boundary Y synth dice que no está hablando
+      const idleMs = Date.now() - this.lastBoundaryAt;
+      if (idleMs > 6000 && !this.synth.speaking && !this.synth.paused) {
+        console.warn('Watchdog: speech atascado, reiniciando segmento', this.currentSegmentIndex);
+        this.playSegment(this.currentSegmentIndex);
+      }
+    }, 2000);
+  },
+
+  // ══════════════════════════════════════════════════════════════════════
+  // CHAPTERS / SPEED / UI
+  // ══════════════════════════════════════════════════════════════════════
 
   nextChapter() {
     if (this.currentChapter < App.state.chapters.length - 1) {
@@ -331,18 +529,14 @@ const Player = {
     const btn = document.getElementById('btn-speed');
     if (btn) btn.textContent = this.speed + 'x';
 
-    // Guardar velocidad
     this.saveProgress();
 
-    // Si está reproduciendo, reiniciar con nueva velocidad
     if (this.isPlaying) {
-      const currentWord = this.words[this.currentWordIndex];
-      const startOffset = currentWord ? currentWord.charIndex : 0;
-
+      // Reiniciar segmento actual con nueva velocidad
       this.synth.cancel();
-      const text = this.chapterText.substring(startOffset);
-      this.utterance = this.createUtterance(text, startOffset);
-      this.synth.speak(this.utterance);
+      setTimeout(() => {
+        if (this.isPlaying) this.playSegment(this.currentSegmentIndex);
+      }, 80);
     }
   },
 
@@ -354,7 +548,6 @@ const Player = {
   updatePlayIcon(playing) {
     const icon = document.getElementById('icon-play');
     if (!icon) return;
-
     if (playing) {
       icon.innerHTML = '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>';
     } else {
@@ -374,26 +567,15 @@ const Player = {
     this.updateProgress(100);
   },
 
-  // Detección de scroll manual
   setupScrollDetection() {
     const lyricsEl = document.getElementById('player-lyrics');
     if (!lyricsEl) return;
-
-    let userScrolling = false;
-
-    lyricsEl.addEventListener('touchstart', () => {
-      userScrolling = true;
+    const onUserScroll = () => {
       this.autoScroll = false;
       this.showLiveButton(true);
-    }, { passive: true });
-
-    lyricsEl.addEventListener('wheel', () => {
-      userScrolling = true;
-      this.autoScroll = false;
-      this.showLiveButton(true);
-    }, { passive: true });
-
-    // No ocultar automáticamente - el botón "Volver al en vivo" lo hace
+    };
+    lyricsEl.addEventListener('touchstart', onUserScroll, { passive: true });
+    lyricsEl.addEventListener('wheel', onUserScroll, { passive: true });
   },
 
   showLiveButton(show) {
@@ -404,29 +586,7 @@ const Player = {
   scrollToLive() {
     this.autoScroll = true;
     this.showLiveButton(false);
-
-    const activeLine = document.querySelector('.lyric-line.active');
-    if (activeLine) {
-      const lyricsContainer = document.getElementById('player-lyrics');
-      if (lyricsContainer) {
-        const lineTop = activeLine.offsetTop;
-        const containerHeight = lyricsContainer.clientHeight;
-        lyricsContainer.scrollTo({
-          top: lineTop - containerHeight / 3,
-          behavior: 'smooth'
-        });
-      }
-    }
-  },
-
-  // Chrome bug: speech se detiene después de ~15 segundos
-  startChromeBugFix() {
-    this.chromeBugInterval = setInterval(() => {
-      if (this.synth.speaking && !this.synth.paused) {
-        this.synth.pause();
-        this.synth.resume();
-      }
-    }, 14000);
+    this.scrollActiveIntoView();
   },
 
   saveProgress() {
@@ -439,17 +599,12 @@ const Player = {
 
   destroy() {
     this.saveProgress();
-    this.synth.cancel();
+    try { this.synth.cancel(); } catch {}
     this.isPlaying = false;
-
-    if (this.chromeBugInterval) {
-      clearInterval(this.chromeBugInterval);
-      this.chromeBugInterval = null;
-    }
-
-    if (this.scrollTimer) {
-      clearTimeout(this.scrollTimer);
-      this.scrollTimer = null;
+    this.stopFallbackTimer();
+    if (this.watchdogTimer) {
+      clearInterval(this.watchdogTimer);
+      this.watchdogTimer = null;
     }
   }
 };
