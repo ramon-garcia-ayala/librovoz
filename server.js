@@ -51,11 +51,36 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', model: MODEL });
 });
 
-// OCR - Extraer texto de imagen de página
+// OCR - Extraer texto + describir figuras inline con contexto adyacente
 app.post('/api/ocr', async (req, res) => {
   try {
-    const { image } = req.body;
+    const { image, context } = req.body;
     if (!image) return res.status(400).json({ error: 'Falta la imagen' });
+
+    const prev = (context && context.prev) ? String(context.prev).slice(-500) : '';
+    const next = (context && context.next) ? String(context.next).slice(0, 500) : '';
+
+    const contextBlock = (prev || next)
+      ? `\n\nContexto adyacente (NO lo incluyas en tu respuesta, úsalo solo para nombrar bien lo que ves):
+${prev ? `TEXTO PÁGINA ANTERIOR (fin): ${prev}` : ''}
+${next ? `TEXTO PÁGINA SIGUIENTE (inicio): ${next}` : ''}`
+      : '';
+
+    const prompt = `Extrae todo el texto visible de esta página de libro. Conserva los saltos de párrafo. Omite números de página y encabezados/pies repetidos.
+
+Si la página contiene figuras, ilustraciones, diagramas, tablas o fotografías, descríbelas brevemente en español e insértalas en el lugar donde aparecen en el flujo de lectura, con este formato exacto:
+
+[Figura N: descripción concisa en una oración]
+
+Reglas estrictas para las descripciones:
+- Una sola oración, 10-20 palabras máximo.
+- Describe SOLO lo que claramente VES en la imagen. No interpretes ni inventes detalles.
+- Usa el contexto adyacente para nombrar elementos correctamente (ej. si el texto menciona "el Sr. Pérez", llama así al hombre que ves).
+- Si es una tabla, resume en una oración los datos principales.
+- Numera las figuras dentro de la página: [Figura 1: ...], [Figura 2: ...].
+- Si no hay figuras, simplemente NO incluyas ningún marcador [Figura ...].${contextBlock}
+
+Devuelve SOLO el texto extraído con las descripciones de figuras integradas. Nada más, sin comentarios.`;
 
     const response = await anthropic.messages.create({
       model: MODEL,
@@ -67,10 +92,7 @@ app.post('/api/ocr', async (req, res) => {
             type: 'image',
             source: { type: 'base64', media_type: 'image/jpeg', data: image }
           },
-          {
-            type: 'text',
-            text: 'Extrae todo el texto de esta imagen de página de libro. Conserva los saltos de párrafo. Omite números de página y encabezados/pies de página. Devuelve solo el texto extraído, nada más.'
-          }
+          { type: 'text', text: prompt }
         ]
       }]
     });

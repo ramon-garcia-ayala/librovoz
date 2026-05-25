@@ -124,6 +124,8 @@ const Player = {
     let globalCharIndex = 0;
     let globalWordIndex = 0;
 
+    const FIGURE_RE = /^\[Figura\s+\d+:.+\]$/;
+
     container.innerHTML = this.sentences.map((sentence, si) => {
       const sentenceWords = Utils.splitIntoWords(sentence);
       const wordsHtml = sentenceWords.map((w) => {
@@ -143,7 +145,11 @@ const Player = {
         return `<span class="word" data-word-index="${globalWordIndex - 1}" data-char-index="${actualCharIdx}">${w.word}</span>`;
       }).join(' ');
 
-      return `<div class="lyric-line future" data-sentence="${si}">${wordsHtml}</div>`;
+      // Si la oración completa es un marcador de figura → estilizar como bloque distinto
+      const isFigure = FIGURE_RE.test(sentence.trim());
+      const lineClass = isFigure ? 'lyric-line lyric-figure future' : 'lyric-line future';
+
+      return `<div class="${lineClass}" data-sentence="${si}">${wordsHtml}</div>`;
     }).join('');
 
     this.totalChars = text.length;

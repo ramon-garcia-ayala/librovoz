@@ -31,8 +31,8 @@ const API = {
     }
   },
 
-  async ocr(imageBase64) {
-    return this._fetch('/ocr', { image: imageBase64 });
+  async ocr(imageBase64, context) {
+    return this._fetch('/ocr', { image: imageBase64, context });
   },
 
   async detectCover(imageBase64) {

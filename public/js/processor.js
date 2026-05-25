@@ -58,10 +58,11 @@ const Processor = {
         const total = App.state.bookPages.length;
         setProgress(15, 'Leyendo páginas en tu dispositivo...', `0 de ${total}`);
 
-        App.state.fullText = await OCR.processAllPages((current, total, meta, fallbackCount) => {
+        App.state.fullText = await OCR.processAllPages((current, total, meta, fallbackCount, figuresCount) => {
           const pct = 15 + Math.round((current / total) * 60);
-          const aiLabel = fallbackCount > 0 ? ` · ${fallbackCount} mejoradas con IA` : '';
-          setProgress(pct, 'Leyendo páginas en tu dispositivo...', `${current} de ${total}${aiLabel}`);
+          const aiLabel = fallbackCount > 0 ? ` · ${fallbackCount} con IA` : '';
+          const figLabel = figuresCount > 0 ? ` · ${figuresCount} figura${figuresCount !== 1 ? 's' : ''}` : '';
+          setProgress(pct, 'Leyendo páginas en tu dispositivo...', `${current} de ${total}${aiLabel}${figLabel}`);
         });
       }
 

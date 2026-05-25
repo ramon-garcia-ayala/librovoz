@@ -375,6 +375,28 @@
   transform: scale(0.9);
 }
 
+/* Bloque de descripción de figura insertado en lyrics */
+.lyric-line.lyric-figure {
+  display: block;
+  margin: var(--space-4) 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-accent-soft);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  font-style: italic;
+  font-size: 0.94em;
+  color: var(--color-text-secondary);
+}
+
+.lyric-line.lyric-figure.active {
+  background: rgba(var(--accent-rgb), 0.18);
+  color: var(--color-text);
+}
+
+.lyric-line.lyric-figure .word.active {
+  color: var(--color-accent);
+}
+
 /* Botón play/pause central */
 .player-btn-play {
   width: 64px;
