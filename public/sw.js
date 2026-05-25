@@ -1,6 +1,11 @@
-const CACHE_NAME = 'librovoz-v3';
+const CACHE_NAME = 'librovoz-v4';
 const STATIC_ASSETS = [
   '/',
+  '/manifest.json',
+  '/assets/icons/icon-192.png',
+  '/assets/icons/icon-512.png',
+  '/assets/icons/apple-touch-icon.png',
+  '/assets/icons/favicon-32.png',
   '/css/variables.css',
   '/css/components.css',
   '/css/styles.css',

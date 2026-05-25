@@ -22,7 +22,13 @@ const MODEL = 'claude-haiku-4-5-20251001';
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
-app.use(express.static('public'));
+app.use(express.static('public', { dotfiles: 'allow' }));
+
+// Forzar Content-Type correcto para Digital Asset Links (Android lo requiere)
+app.get('/.well-known/assetlinks.json', (req, res) => {
+  res.type('application/json');
+  res.sendFile(path.join(__dirname, 'public', '.well-known', 'assetlinks.json'));
+});
 
 // Rate limiting
 const limiter = rateLimit({
