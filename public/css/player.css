@@ -289,8 +289,8 @@
 .player-progress-bar {
   flex: 1;
   height: 3px;
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 2px;
+  background: rgba(var(--text-base-rgb), 0.10);
+  border-radius: var(--radius-full);
   overflow: hidden;
   cursor: pointer;
   position: relative;
@@ -380,8 +380,9 @@
   width: 64px;
   height: 64px;
   border-radius: var(--radius-full);
-  background: var(--color-text);
-  border: none;
+  background: rgba(var(--accent-rgb), 0.92);
+  border: 1px solid rgba(var(--accent-rgb), 0.6);
+  box-shadow: 0 8px 24px rgba(var(--accent-rgb), 0.25), var(--glass-inset);
   color: #FFFFFF;
   font-size: var(--font-size-xl);
   display: flex;

@@ -18,6 +18,11 @@ const Paywall = {
     const chatPrice = document.getElementById('paywall-chat-amount');
     if (chatTitle) chatTitle.textContent = `Pack ${LIMITS.CHAT_PACK_QUESTIONS} preguntas extra`;
     if (chatPrice) chatPrice.textContent = `$${LIMITS.CHAT_PACK_PRICE_MXN}`;
+
+    // Microcopy de conversión (anti-repeat por sesión)
+    if (typeof Microcopy !== 'undefined') {
+      Microcopy.render('paywall-microcopy', 'conversion');
+    }
   },
 
   buyPackage(type) {

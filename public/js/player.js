@@ -76,6 +76,12 @@ const Player = {
     // Detener reproducción actual
     this.stop();
 
+    // Milestone microcopy al cambiar de capítulo (no en la carga inicial)
+    if (typeof Microcopy !== 'undefined' && this.currentChapter !== index && index > 0) {
+      const phrase = Microcopy.pickSync('milestone');
+      if (phrase && App && App.showToast) App.showToast(phrase, 'info');
+    }
+
     this.currentChapter = index;
     App.state.currentChapter = index;
 

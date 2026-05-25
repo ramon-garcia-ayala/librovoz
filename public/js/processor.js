@@ -17,6 +17,19 @@ const Processor = {
 
     if (privacyEl) privacyEl.style.display = 'block';
 
+    // Microcopy rotativa durante el procesamiento (cada 12s)
+    if (typeof Microcopy !== 'undefined') {
+      const micro = document.getElementById('processing-microcopy');
+      if (micro) {
+        const update = () => {
+          const phrase = Microcopy.pickSync('didYouKnow');
+          if (phrase) micro.textContent = phrase;
+        };
+        update();
+        this._microcopyTimer = setInterval(update, 12000);
+      }
+    }
+
     try {
       // 1. Portada (Claude vision con imagen chica 1024px) + Índice (Tesseract local) en paralelo
       setProgress(5, 'Analizando portada e índice...', '');
@@ -62,6 +75,12 @@ const Processor = {
       setProgress(100, 'Listo', `${App.state.chapters.length} capítulo(s)`);
 
       if (privacyEl) privacyEl.style.display = 'none';
+      if (this._microcopyTimer) {
+        clearInterval(this._microcopyTimer);
+        this._microcopyTimer = null;
+      }
+      const micro = document.getElementById('processing-microcopy');
+      if (micro) micro.style.display = 'none';
 
       if (reviewable.length > 0) {
         this.renderReviewablePages(reviewable);

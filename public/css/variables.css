@@ -1,76 +1,115 @@
 /* ==========================================================================
-   LibroVoz — Design Tokens
-   Estética Apple minimalista, optimizada para personas mayores
+   LibroVoz — Calm Glass Design Tokens
+   Inspirado en Calm + Kindle + Apple Liquid Glass
    ========================================================================== */
 
 :root {
   /* ── Tipografía ──────────────────────────────────────────────────────── */
-  --font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
-  --font-size-xs: 14px;
-  --font-size-sm: 16px;
-  --font-size-base: 18px;
-  --font-size-md: 20px;
-  --font-size-lg: 24px;
+  --font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Inter', system-ui, sans-serif;
+  --font-display: var(--font-family);
+  --font-body: var(--font-family);
+
+  /* Sizes (legacy names preserved + new) */
+  --font-size-xs: 13px;
+  --font-size-sm: 15px;
+  --font-size-base: 17px;
+  --font-size-md: 19px;
+  --font-size-lg: 22px;
   --font-size-xl: 28px;
   --font-size-2xl: 34px;
-  --font-size-3xl: 40px;
+  --font-size-3xl: 44px;
+
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
-  --font-weight-bold: 700;
-  --line-height-tight: 1.2;
+  --font-weight-bold: 600;   /* Calm Glass evita pesos agresivos */
+
+  --line-height-tight: 1.15;
   --line-height-base: 1.5;
-  --line-height-relaxed: 1.7;
+  --line-height-relaxed: 1.6;
 
-  /* ── Colores ─────────────────────────────────────────────────────────── */
-  --color-bg: #FAFAFA;
-  --color-bg-secondary: #F2F2F7;
-  --color-bg-elevated: #FFFFFF;
-  --color-text: #1D1D1F;
-  --color-text-secondary: #3A3A3C;
-  --color-text-tertiary: #636366;
-  --color-accent: #007AFF;
-  --color-accent-hover: #0066D6;
-  --color-accent-active: #004EA2;
-  --color-success: #34C759;
-  --color-success-bg: rgba(52, 199, 89, 0.12);
-  --color-warning: #FF9500;
-  --color-error: #FF3B30;
-  --color-gray-past: #8E8E93;
-  --color-gray-future: #636366;
-  --color-border: rgba(0, 0, 0, 0.08);
-  --color-border-strong: rgba(0, 0, 0, 0.15);
+  --tracking-tight: -0.02em;
+  --tracking-base: -0.01em;
 
-  /* ── Colores — Modo oscuro (player/scanner) ──────────────────────────── */
-  --color-dark-bg: #000000;
-  --color-dark-bg-elevated: #1C1C1E;
-  --color-dark-bg-secondary: #2C2C2E;
-  --color-dark-text: #FFFFFF;
-  --color-dark-text-secondary: rgba(255, 255, 255, 0.7);
-  --color-dark-text-tertiary: rgba(255, 255, 255, 0.4);
-  --color-dark-border: rgba(255, 255, 255, 0.1);
+  /* ── Color base — Light Calm theme ───────────────────────────────────── */
+  --text-base-rgb: 24, 28, 38;                          /* casi negro azulado */
+  --color-text: rgba(var(--text-base-rgb), 1);
+  --color-text-secondary: rgba(var(--text-base-rgb), 0.70);
+  --color-text-tertiary: rgba(var(--text-base-rgb), 0.45);
+  --color-text-faint: rgba(var(--text-base-rgb), 0.25);
 
-  /* ── Player ──────────────────────────────────────────────────────────── */
-  --player-bg: linear-gradient(180deg, #FFFFFF 0%, #F5F5F7 50%, #E8E8ED 100%);
-  --player-bg-fallback: #FFFFFF;
-  --player-controls-bg: rgba(255, 255, 255, 0.85);
+  /* Fondos: gradiente cálido beige/cream (Kindle-like) */
+  --bg-from: #F4F1EC;
+  --bg-to: #E8E2D5;
+  --color-bg: #F4F1EC;
+  --color-bg-secondary: rgba(var(--text-base-rgb), 0.04);
+  --color-bg-elevated: rgba(255, 255, 255, 0.55);       /* glass surface por defecto */
 
-  /* ── Bordes redondeados ──────────────────────────────────────────────── */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
-  --radius-2xl: 24px;
-  --radius-full: 50%;
+  /* ── Acento único (slate-blue desaturado) ────────────────────────────── */
+  --accent-rgb: 139, 163, 184;
+  --color-accent: rgb(var(--accent-rgb));
+  --color-accent-hover: rgba(var(--accent-rgb), 0.92);
+  --color-accent-active: rgba(var(--accent-rgb), 0.85);
+  --color-accent-soft: rgba(var(--accent-rgb), 0.12);
+  --color-accent-glow: rgba(var(--accent-rgb), 0.35);
 
-  /* ── Sombras ─────────────────────────────────────────────────────────── */
-  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 4px 24px rgba(0, 0, 0, 0.12);
-  --shadow-xl: 0 8px 40px rgba(0, 0, 0, 0.16);
-  --shadow-glow: 0 0 20px rgba(0, 122, 255, 0.3);
+  /* Estados (mantenidos, pero más desaturados) */
+  --color-success: #7DAA8E;
+  --color-success-bg: rgba(125, 170, 142, 0.14);
+  --color-warning: #C9A86A;
+  --color-error: #C97D70;
 
-  /* ── Espaciado (escala 4px) ──────────────────────────────────────────── */
+  /* Para textos de lyrics (player) */
+  --color-gray-past: rgba(var(--text-base-rgb), 0.35);
+  --color-gray-future: rgba(var(--text-base-rgb), 0.30);
+
+  /* Bordes */
+  --color-border: rgba(var(--text-base-rgb), 0.08);
+  --color-border-strong: rgba(var(--text-base-rgb), 0.14);
+
+  /* ── Glass system (CORE de Calm Glass) ───────────────────────────────── */
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-bg-strong: rgba(255, 255, 255, 0.72);
+  --glass-bg-faint: rgba(255, 255, 255, 0.30);
+  --glass-border: rgba(255, 255, 255, 0.40);
+  --glass-border-strong: rgba(255, 255, 255, 0.55);
+  --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  --glass-blur: blur(24px) saturate(140%);
+  --glass-blur-heavy: blur(40px) saturate(160%);
+  --glass-shadow: 0 8px 32px rgba(24, 28, 38, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  --glass-shadow-elevated: 0 16px 48px rgba(24, 28, 38, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+
+  /* ── Dark surfaces (player/scanner backdrops fullscreen) ─────────────── */
+  --color-dark-bg: linear-gradient(180deg, #1A1E26 0%, #0F1419 100%);
+  --color-dark-bg-elevated: rgba(255, 255, 255, 0.06);
+  --color-dark-bg-secondary: rgba(255, 255, 255, 0.04);
+  --color-dark-text: rgba(255, 255, 255, 0.92);
+  --color-dark-text-secondary: rgba(255, 255, 255, 0.65);
+  --color-dark-text-tertiary: rgba(255, 255, 255, 0.40);
+  --color-dark-border: rgba(255, 255, 255, 0.10);
+
+  /* ── Player (light, ya estaba) ─────────────────────────────────────── */
+  --player-bg: linear-gradient(180deg, #F4F1EC 0%, #EFEAE0 50%, #E8E2D5 100%);
+  --player-bg-fallback: #F4F1EC;
+  --player-controls-bg: rgba(255, 255, 255, 0.55);
+
+  /* ── Radius — más generoso ───────────────────────────────────────────── */
+  --radius-sm: 12px;
+  --radius-md: 18px;
+  --radius-lg: 24px;
+  --radius-xl: 28px;
+  --radius-2xl: 32px;
+  --radius-full: 999px;
+
+  /* ── Sombras — difusas y largas ──────────────────────────────────────── */
+  --shadow-sm: 0 2px 8px rgba(24, 28, 38, 0.04);
+  --shadow-md: 0 6px 24px rgba(24, 28, 38, 0.06);
+  --shadow-lg: 0 12px 40px rgba(24, 28, 38, 0.08);
+  --shadow-xl: 0 24px 64px rgba(24, 28, 38, 0.10);
+  --shadow-glow: 0 0 24px var(--color-accent-glow);
+
+  /* ── Espaciado ──────────────────────────────────────────────────────── */
+  /* Escala original (4-base) preservada para no romper 100+ usos */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -81,14 +120,29 @@
   --space-10: 40px;
   --space-12: 48px;
   --space-16: 64px;
+  /* Nueva escala recomendada por Calm Glass spec (uso opt-in) */
+  --s-1: 8px;
+  --s-2: 16px;
+  --s-3: 24px;
+  --s-4: 40px;
+  --s-5: 64px;
+  --s-6: 96px;
 
-  /* ── Transiciones ────────────────────────────────────────────────────── */
-  --transition-fast: 0.15s ease;
-  --transition-base: 0.3s ease;
-  --transition-slow: 0.5s ease;
-  --transition-spring: 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* ── Movimiento — easings de respiración ─────────────────────────────── */
+  --ease-glass: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-breath: cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* ── Touch targets ───────────────────────────────────────────────────── */
+  --dur-base: 400ms;
+  --dur-slow: 600ms;
+  --dur-breath: 1200ms;
+
+  /* Legacy (apuntan al nuevo easing para no romper) */
+  --transition-fast: 200ms var(--ease-glass);
+  --transition-base: var(--dur-base) var(--ease-glass);
+  --transition-slow: var(--dur-slow) var(--ease-glass);
+  --transition-spring: var(--dur-base) var(--ease-glass);
+
+  /* ── Touch targets (preserved) ───────────────────────────────────────── */
   --touch-min: 48px;
   --touch-comfortable: 56px;
 
@@ -100,7 +154,39 @@
   --z-toast: 300;
   --z-max: 999;
 
-  /* ── Backdrop ────────────────────────────────────────────────────────── */
-  --backdrop-blur: blur(20px);
-  --backdrop-blur-heavy: blur(40px);
+  /* ── Backdrop legacy ─────────────────────────────────────────────────── */
+  --backdrop-blur: blur(24px) saturate(140%);
+  --backdrop-blur-heavy: blur(40px) saturate(160%);
+}
+
+/* ── Fondo global con gradiente Calm Glass ─────────────────────────────── */
+html, body {
+  background: linear-gradient(180deg, var(--bg-from) 0%, var(--bg-to) 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
+  min-height: 100dvh;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  letter-spacing: var(--tracking-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Utility class opt-in para glass ────────────────────────────────────── */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-strong {
+  background: var(--glass-bg-strong);
+  backdrop-filter: var(--glass-blur-heavy);
+  -webkit-backdrop-filter: var(--glass-blur-heavy);
+  border: 1px solid var(--glass-border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow-elevated);
 }

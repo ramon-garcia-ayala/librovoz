@@ -6,6 +6,9 @@ const Library = {
     const empty = document.getElementById('library-empty');
 
     await this.renderQuotaBadge();
+    if (typeof Microcopy !== 'undefined') {
+      await Microcopy.render('library-ambient', 'welcome');
+    }
 
     if (books.length === 0) {
       if (grid) grid.style.display = 'none';

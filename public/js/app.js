@@ -43,6 +43,10 @@ const App = {
   async route() {
     const hash = location.hash.slice(2) || 'landing';
     await this.navigateTo(hash);
+    // Microcopy en landing
+    if (hash === 'landing' && typeof Microcopy !== 'undefined') {
+      Microcopy.render('landing-ambient', 'welcome');
+    }
   },
 
   async navigateTo(screen) {
