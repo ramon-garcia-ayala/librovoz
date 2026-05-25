@@ -1,0 +1,20 @@
+<div class="library">
+  <div class="library-header">
+    <h1 class="library-title">Mi Biblioteca</h1>
+  </div>
+
+  <div class="library-grid" id="library-grid"></div>
+
+  <div class="library-empty" id="library-empty" style="display:none">
+    <svg viewBox="0 0 80 80" width="80" height="80" fill="none">
+      <path d="M16 65V20c0-2 2-4 4-4h16c4 0 8 2 8 5v46c0-2-3-4-6-4H20c-2 0-4 2-4 4z" fill="#007AFF" opacity="0.15"/>
+      <path d="M64 65V20c0-2-2-4-4-4H44c-4 0-8 2-8 5v46c0-2 3-4 6-4h18c2 0 4 2 4 4z" fill="#007AFF" opacity="0.25"/>
+      <line x1="28" y1="30" x2="36" y2="30" stroke="#007AFF" stroke-width="2" opacity="0.4"/>
+      <line x1="28" y1="36" x2="34" y2="36" stroke="#007AFF" stroke-width="2" opacity="0.3"/>
+      <line x1="44" y1="30" x2="52" y2="30" stroke="#007AFF" stroke-width="2" opacity="0.4"/>
+      <line x1="44" y1="36" x2="50" y2="36" stroke="#007AFF" stroke-width="2" opacity="0.3"/>
+    </svg>
+    <p>Aún no tienes libros guardados</p>
+    <button class="btn btn-primary" onclick="App.go('scanner')">Escanear un libro</button>
+  </div>
+</div>

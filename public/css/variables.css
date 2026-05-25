@@ -51,9 +51,9 @@
   --color-dark-border: rgba(255, 255, 255, 0.1);
 
   /* ── Player ──────────────────────────────────────────────────────────── */
-  --player-bg: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-  --player-bg-fallback: #1a1a2e;
-  --player-controls-bg: rgba(0, 0, 0, 0.6);
+  --player-bg: linear-gradient(180deg, #FFFFFF 0%, #F5F5F7 50%, #E8E8ED 100%);
+  --player-bg-fallback: #FFFFFF;
+  --player-controls-bg: rgba(255, 255, 255, 0.85);
 
   /* ── Bordes redondeados ──────────────────────────────────────────────── */
   --radius-sm: 8px;

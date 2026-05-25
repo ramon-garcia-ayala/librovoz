@@ -3,6 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const Anthropic = require('@anthropic-ai/sdk');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,7 +27,7 @@ app.use(express.static('public'));
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 30,
+  max: 100,
   message: { error: 'Demasiadas solicitudes. Espera un momento.' }
 });
 app.use('/api/', limiter);
@@ -159,13 +161,33 @@ app.post('/api/summarize', async (req, res) => {
   }
 });
 
-// Iniciar servidor
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n📚 LibroVoz servidor iniciado`);
-  console.log(`   Local:  http://localhost:${PORT}`);
-  console.log(`   Red:    http://${getLocalIP()}:${PORT}`);
-  console.log(`\n   Abre esta dirección en tu celular para usar la app.\n`);
-});
+// Iniciar servidor (HTTPS si hay certificados, HTTP como fallback)
+const certPath = path.join(__dirname, 'cert.pem');
+const keyPath = path.join(__dirname, 'key.pem');
+const localIP = getLocalIP();
+
+if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+  const https = require('https');
+  const sslOptions = {
+    key: fs.readFileSync(keyPath),
+    cert: fs.readFileSync(certPath)
+  };
+  https.createServer(sslOptions, app).listen(PORT, '0.0.0.0', () => {
+    console.log(`\n📚 LibroVoz servidor HTTPS iniciado`);
+    console.log(`   Local:  https://localhost:${PORT}`);
+    console.log(`   Red:    https://${localIP}:${PORT}`);
+    console.log(`\n   En tu celular abre la URL de Red.`);
+    console.log(`   Acepta el aviso de certificado para continuar.\n`);
+  });
+} else {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`\n📚 LibroVoz servidor HTTP iniciado`);
+    console.log(`   Local:  http://localhost:${PORT}`);
+    console.log(`   Red:    http://${localIP}:${PORT}`);
+    console.log(`\n   ⚠️  Sin HTTPS la cámara no funciona en celulares.`);
+    console.log(`   Genera certificados con: openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 365 -nodes\n`);
+  });
+}
 
 function getLocalIP() {
   const os = require('os');

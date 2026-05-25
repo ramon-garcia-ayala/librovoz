@@ -1,37 +1,85 @@
 <div class="scanner">
-  <!-- Header flotante -->
-  <div class="scanner-header">
-    <span class="scanner-phase" id="scanner-phase">Paso 1/3: Portada</span>
-    <span class="badge" id="scanner-count" style="display:none">0</span>
-  </div>
-
-  <!-- Vista de cámara -->
-  <div class="scanner-camera">
+  <!-- Video cámara fullscreen -->
+  <div class="scanner-camera" id="scanner-camera">
     <video id="camera-feed" autoplay playsinline muted></video>
     <div class="scanner-flash" id="scanner-flash"></div>
-    <div class="scanner-guide" id="scanner-guide">
-      <div class="scanner-guide-corners"></div>
+  </div>
+
+  <!-- Permiso de cámara (se muestra si no hay acceso) -->
+  <div class="scanner-permission" id="scanner-permission" style="display:none">
+    <div class="scanner-permission-content">
+      <svg viewBox="0 0 80 80" width="80" height="80" fill="none">
+        <rect x="12" y="20" width="56" height="40" rx="6" stroke="#007AFF" stroke-width="3" fill="none"/>
+        <circle cx="40" cy="40" r="12" stroke="#007AFF" stroke-width="3" fill="none"/>
+        <circle cx="40" cy="40" r="5" fill="#007AFF" opacity="0.3"/>
+        <rect x="48" y="24" width="8" height="4" rx="2" fill="#007AFF" opacity="0.5"/>
+      </svg>
+      <h2>Acceso a la cámara</h2>
+      <p>Necesitamos tu cámara para fotografiar las páginas del libro</p>
+      <button class="btn btn-primary" onclick="Scanner.openNativeCamera()">Tomar foto</button>
+      <button class="btn btn-ghost" onclick="Scanner.openGallery()">Elegir de galería</button>
     </div>
   </div>
 
-  <!-- Input file fallback -->
-  <input type="file" id="file-input" accept="image/*" capture="environment" style="display:none" multiple>
-
-  <!-- Botón de captura -->
-  <div class="scanner-controls">
-    <button class="btn-capture" id="btn-capture" onclick="Scanner.capture()">
-      <svg viewBox="0 0 72 72" width="72" height="72">
-        <circle cx="36" cy="36" r="34" stroke="#fff" stroke-width="4" fill="none"/>
-        <circle cx="36" cy="36" r="28" fill="#fff"/>
-      </svg>
-    </button>
+  <!-- Guía de encuadre -->
+  <div class="scanner-guide" id="scanner-guide">
+    <div class="scanner-guide-corner scanner-guide-corner--tl"></div>
+    <div class="scanner-guide-corner scanner-guide-corner--tr"></div>
+    <div class="scanner-guide-corner scanner-guide-corner--bl"></div>
+    <div class="scanner-guide-corner scanner-guide-corner--br"></div>
+    <div class="scanner-guide-label" id="scanner-guide-label">Encuadra la portada</div>
   </div>
 
-  <!-- Thumbnails -->
-  <div class="scanner-thumbnails" id="scanner-thumbnails"></div>
+  <!-- Header: fase + progreso -->
+  <div class="scanner-topbar">
+    <button class="scanner-btn" onclick="App.go('landing')">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="scanner-topbar-center">
+      <div class="scanner-steps">
+        <div class="scanner-step active" id="step-cover" data-label="Portada">1</div>
+        <div class="scanner-step-line"></div>
+        <div class="scanner-step" id="step-index" data-label="Índice">2</div>
+        <div class="scanner-step-line"></div>
+        <div class="scanner-step" id="step-pages" data-label="Páginas">3</div>
+      </div>
+    </div>
+    <div style="width:48px"></div>
+  </div>
 
-  <!-- Acciones por fase -->
-  <div class="scanner-actions" id="scanner-actions">
-    <button class="btn btn-primary" id="btn-phase-action" style="display:none" onclick="Scanner.nextPhase()">Siguiente paso</button>
+  <!-- Inputs file ocultos -->
+  <input type="file" id="file-input" accept="image/*" style="display:none">
+  <input type="file" id="file-input-multi" accept="image/*" style="display:none" multiple>
+  <input type="file" id="file-input-camera" accept="image/*" capture="environment" style="display:none">
+
+  <!-- Thumbnails strip -->
+  <div class="scanner-thumbstrip" id="scanner-thumbnails"></div>
+
+  <!-- Barra inferior: controles -->
+  <div class="scanner-bottom">
+    <!-- Info de fase -->
+    <div class="scanner-phase-info" id="scanner-phase-info">
+      <span class="scanner-phase-title" id="scanner-phase-title">Fotografía la portada</span>
+      <span class="scanner-phase-count" id="scanner-phase-count" style="display:none">0 fotos</span>
+    </div>
+
+    <!-- Controles -->
+    <div class="scanner-controls">
+      <button class="scanner-side-btn" id="btn-gallery" onclick="Scanner.openGallery()">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <path d="M21 15l-5-5L5 21"/>
+        </svg>
+      </button>
+      <button class="btn-capture" id="btn-capture" onclick="Scanner.capture()">
+        <div class="btn-capture-ring"></div>
+        <div class="btn-capture-fill"></div>
+      </button>
+      <button class="scanner-side-btn scanner-next-btn" id="btn-next-phase" onclick="Scanner.nextPhase()" style="display:none">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+      <div class="scanner-side-btn scanner-side-placeholder" id="btn-placeholder"></div>
+    </div>
   </div>
 </div>

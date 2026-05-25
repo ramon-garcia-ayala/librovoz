@@ -1,4 +1,4 @@
-const CACHE_NAME = 'librovoz-v1';
+const CACHE_NAME = 'librovoz-v3';
 const STATIC_ASSETS = [
   '/',
   '/css/variables.css',
@@ -6,6 +6,7 @@ const STATIC_ASSETS = [
   '/css/styles.css',
   '/css/scanner.css',
   '/css/player.css',
+  '/css/library.css',
   '/js/app.js',
   '/js/api.js',
   '/js/scanner.js',
@@ -15,7 +16,10 @@ const STATIC_ASSETS = [
   '/js/voices.js',
   '/js/player.js',
   '/js/tutorial.js',
-  '/js/utils.js'
+  '/js/utils.js',
+  '/js/db.js',
+  '/js/library.js',
+  '/pages/library.html'
 ];
 
 self.addEventListener('install', e => {

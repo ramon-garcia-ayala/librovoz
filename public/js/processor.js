@@ -1,4 +1,4 @@
-// LibroVoz - Pipeline de procesamiento
+// LibroVoz - Pipeline de procesamiento optimizado
 const Processor = {
   async init() {
     const statusEl = document.getElementById('processing-status');
@@ -15,10 +15,16 @@ const Processor = {
     };
 
     try {
-      // 1. Procesar portada
-      setProgress(5, 'Analizando portada...', '');
-      const coverInfo = await OCR.processCover(App.state.coverImage);
+      // 1. Portada e índice en paralelo
+      setProgress(5, 'Analizando portada e índice...', '');
+
+      const [coverInfo, indexText] = await Promise.all([
+        OCR.processCover(App.state.coverImage),
+        OCR.processIndex(App.state.indexPages)
+      ]);
+
       App.state.coverInfo = coverInfo;
+      App.state.indexText = indexText;
 
       if (titleEl) titleEl.textContent = coverInfo.title;
       if (authorEl) authorEl.textContent = coverInfo.author;
@@ -26,18 +32,14 @@ const Processor = {
         coverEl.innerHTML = `<img src="data:image/jpeg;base64,${App.state.coverImage}" alt="Portada">`;
       }
 
-      // 2. Procesar índice
-      setProgress(15, 'Leyendo índice...', '');
-      App.state.indexText = await OCR.processIndex(App.state.indexPages);
-
-      // 3. Procesar páginas con progreso
-      setProgress(20, 'Leyendo páginas...', 'Página 1 de ' + App.state.bookPages.length);
+      // 2. Procesar páginas en paralelo (lotes de 3)
+      setProgress(20, 'Leyendo páginas...', `0 de ${App.state.bookPages.length}`);
       App.state.fullText = await OCR.processAllPages((current, total) => {
         const pct = 20 + Math.round((current / total) * 50);
-        setProgress(pct, 'Leyendo páginas...', `Página ${current} de ${total}`);
+        setProgress(pct, 'Leyendo páginas...', `${current} de ${total}`);
       });
 
-      // 4. Detectar capítulos
+      // 3. Detectar capítulos
       setProgress(75, 'Detectando capítulos...', '');
       const rawChapters = await Chapters.detect(App.state.fullText, App.state.indexText);
       App.state.chapters = Chapters.splitText(App.state.fullText, rawChapters);

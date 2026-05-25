@@ -125,7 +125,7 @@ const Voices = {
     speechSynthesis.speak(utterance);
   },
 
-  confirm() {
+  async confirm() {
     if (this.selectedIndex < 0) {
       App.showToast('Selecciona una voz primero', 'error');
       return;
@@ -133,6 +133,36 @@ const Voices = {
 
     speechSynthesis.cancel();
     App.state.selectedVoice = this.voices[this.selectedIndex];
+
+    // Auto-guardar libro en IndexedDB
+    try {
+      const voice = this.voices[this.selectedIndex];
+      const thumbnail = App.state.coverImage
+        ? await Utils.createThumbnail(App.state.coverImage)
+        : null;
+
+      const book = {
+        id: 'book_' + Date.now(),
+        title: App.state.coverInfo.title || 'Sin título',
+        author: App.state.coverInfo.author || '',
+        subtitle: App.state.coverInfo.subtitle || '',
+        coverThumbnail: thumbnail,
+        chapters: App.state.chapters,
+        processingMode: App.state.processingMode,
+        voiceName: voice.name,
+        voiceLang: voice.lang,
+        currentChapter: 0,
+        speed: 1,
+        savedAt: new Date().toISOString(),
+        lastPlayedAt: new Date().toISOString()
+      };
+
+      await DB.save(book);
+      App.state._loadedBookId = book.id;
+    } catch (err) {
+      console.error('Error guardando libro:', err);
+    }
+
     App.go('player');
   }
 };

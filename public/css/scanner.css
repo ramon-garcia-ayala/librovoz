@@ -1,34 +1,159 @@
 /* ==========================================================================
-   LibroVoz — Scanner (Dark Theme)
-   Pantalla de escaneo con cámara
+   LibroVoz — Scanner
+   Pantalla de captura con cámara nativa
    ========================================================================== */
 
 /* ── Contenedor principal ──────────────────────────────────────────────── */
 .scanner {
   position: fixed;
   inset: 0;
-  background: var(--color-dark-bg);
+  background: #000;
   z-index: var(--z-base);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-/* ── Video cámara full-screen ──────────────────────────────────────────── */
-.scanner-video {
+/* ── Video cámara fullscreen ──────────────────────────────────────────── */
+.scanner-camera {
   position: absolute;
   inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.scanner-camera video {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  z-index: 1;
 }
 
-.scanner-video-mirror {
-  transform: scaleX(-1);
+/* ── Flash al capturar ────────────────────────────────────────────────── */
+.scanner-flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  z-index: 20;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s ease;
 }
 
-/* ── Barra superior flotante translúcida ───────────────────────────────── */
+.scanner-flash.flash-active {
+  opacity: 0.6;
+  transition: opacity 0.02s ease;
+}
+
+/* ── Pantalla de permiso de cámara ────────────────────────────────────── */
+.scanner-permission {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+}
+
+.scanner-permission-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-5);
+  padding: var(--space-8);
+  max-width: 320px;
+}
+
+.scanner-permission-content svg {
+  opacity: 0.9;
+}
+
+.scanner-permission-content h2 {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: #fff;
+}
+
+.scanner-permission-content p {
+  font-size: var(--font-size-base);
+  color: rgba(255, 255, 255, 0.6);
+  line-height: var(--line-height-relaxed);
+}
+
+.scanner-permission-content .btn-primary {
+  width: 100%;
+}
+
+.scanner-permission-content .btn-ghost {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* ── Guía de encuadre ─────────────────────────────────────────────────── */
+.scanner-guide {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -55%);
+  width: 80%;
+  max-width: 300px;
+  aspect-ratio: 3 / 4;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.scanner-guide-corner {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-color: rgba(255, 255, 255, 0.8);
+  border-style: solid;
+  border-width: 0;
+}
+
+.scanner-guide-corner--tl {
+  top: 0; left: 0;
+  border-top-width: 3px;
+  border-left-width: 3px;
+  border-top-left-radius: 6px;
+}
+
+.scanner-guide-corner--tr {
+  top: 0; right: 0;
+  border-top-width: 3px;
+  border-right-width: 3px;
+  border-top-right-radius: 6px;
+}
+
+.scanner-guide-corner--bl {
+  bottom: 0; left: 0;
+  border-bottom-width: 3px;
+  border-left-width: 3px;
+  border-bottom-left-radius: 6px;
+}
+
+.scanner-guide-corner--br {
+  bottom: 0; right: 0;
+  border-bottom-width: 3px;
+  border-right-width: 3px;
+  border-bottom-right-radius: 6px;
+}
+
+.scanner-guide-label {
+  position: absolute;
+  bottom: -36px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+/* ── Topbar: back + steps ─────────────────────────────────────────────── */
 .scanner-topbar {
   position: absolute;
   top: 0;
@@ -38,163 +163,120 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-12) var(--space-6) var(--space-4);
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.6) 0%, transparent 100%);
-}
-
-.scanner-topbar-left,
-.scanner-topbar-right {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  padding-top: max(var(--space-6), calc(env(safe-area-inset-top) + var(--space-2)));
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.5) 0%, transparent 100%);
 }
 
 .scanner-topbar-center {
+  flex: 1;
   display: flex;
-  flex-direction: column;
+  justify-content: center;
+}
+
+/* ── Steps indicator (1 - 2 - 3) ──────────────────────────────────────── */
+.scanner-steps {
+  display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: 0;
 }
 
-/* Indicador de fase */
-.scanner-phase {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: var(--backdrop-blur);
-  -webkit-backdrop-filter: var(--backdrop-blur);
-  border-radius: var(--radius-2xl);
-  color: #FFFFFF;
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-}
-
-.scanner-phase-dot {
-  width: 8px;
-  height: 8px;
+.scanner-step {
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-full);
-  background: var(--color-success);
-  animation: pulse-gentle 2s ease-in-out infinite;
-}
-
-/* Botones flotantes translúcidos */
-.scanner-btn {
-  width: var(--touch-min);
-  height: var(--touch-min);
-  border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: var(--backdrop-blur);
-  -webkit-backdrop-filter: var(--backdrop-blur);
-  border: none;
-  color: #FFFFFF;
-  font-size: var(--font-size-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
+  font-size: 13px;
+  font-weight: var(--font-weight-bold);
+  color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.1);
   transition: all var(--transition-base);
-  -webkit-tap-highlight-color: transparent;
+  position: relative;
 }
 
-.scanner-btn:hover {
-  background: rgba(255, 255, 255, 0.25);
+.scanner-step.active {
+  color: #fff;
+  background: var(--color-accent);
+  box-shadow: 0 0 12px rgba(0, 122, 255, 0.4);
 }
 
-.scanner-btn:active {
-  transform: scale(0.92);
-}
-
-/* ── Área central (guía de encuadre) ───────────────────────────────────── */
-.scanner-guide {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 85%;
-  max-width: 340px;
-  aspect-ratio: 3 / 4;
-  z-index: 5;
-  pointer-events: none;
-}
-
-.scanner-guide-corner {
-  position: absolute;
-  width: 24px;
-  height: 24px;
-  border-color: rgba(255, 255, 255, 0.7);
-  border-style: solid;
-  border-width: 0;
-}
-
-.scanner-guide-corner--tl {
-  top: 0;
-  left: 0;
-  border-top-width: 3px;
-  border-left-width: 3px;
-  border-top-left-radius: var(--radius-sm);
-}
-
-.scanner-guide-corner--tr {
-  top: 0;
-  right: 0;
-  border-top-width: 3px;
-  border-right-width: 3px;
-  border-top-right-radius: var(--radius-sm);
-}
-
-.scanner-guide-corner--bl {
-  bottom: 0;
-  left: 0;
-  border-bottom-width: 3px;
-  border-left-width: 3px;
-  border-bottom-left-radius: var(--radius-sm);
-}
-
-.scanner-guide-corner--br {
-  bottom: 0;
-  right: 0;
-  border-bottom-width: 3px;
-  border-right-width: 3px;
-  border-bottom-right-radius: var(--radius-sm);
-}
-
-.scanner-guide-label {
-  position: absolute;
-  bottom: -32px;
-  left: 0;
-  right: 0;
-  text-align: center;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-}
-
-/* ── Flash verde al capturar ───────────────────────────────────────────── */
-@keyframes capture-flash {
-  0% {
-    opacity: 0.6;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-
-.capture-flash {
-  position: absolute;
-  inset: 0;
+.scanner-step.done {
+  color: #fff;
   background: var(--color-success);
-  z-index: 20;
+}
+
+.scanner-step::after {
+  content: attr(data-label);
+  position: absolute;
+  top: 34px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.5);
   opacity: 0;
-  pointer-events: none;
+  transition: opacity var(--transition-base);
 }
 
-.capture-flash.active {
-  animation: capture-flash 0.3s ease-out forwards;
+.scanner-step.active::after {
+  opacity: 1;
+  color: #fff;
 }
 
-/* ── Barra inferior ────────────────────────────────────────────────────── */
+.scanner-step-line {
+  width: 24px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.15);
+  transition: background var(--transition-base);
+}
+
+.scanner-step.done + .scanner-step-line {
+  background: var(--color-success);
+}
+
+/* ── Thumbnail strip ──────────────────────────────────────────────────── */
+.scanner-thumbstrip {
+  position: absolute;
+  bottom: 200px;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-6);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scanner-thumbstrip::-webkit-scrollbar {
+  display: none;
+}
+
+.scanner-thumbstrip:empty {
+  display: none;
+}
+
+.scanner-thumb {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 58px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  opacity: 0.85;
+  transition: all var(--transition-fast);
+}
+
+.scanner-thumb:last-child {
+  border-color: #fff;
+  opacity: 1;
+}
+
+/* ── Barra inferior ───────────────────────────────────────────────────── */
 .scanner-bottom {
   position: absolute;
   bottom: 0;
@@ -204,184 +286,158 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-bottom: var(--space-10);
-  background: linear-gradient(0deg, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
+  gap: var(--space-4);
+  padding: var(--space-6) var(--space-6);
+  padding-bottom: max(var(--space-8), calc(env(safe-area-inset-bottom) + var(--space-4)));
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.4) 60%, transparent 100%);
 }
 
-/* Tira de thumbnails */
-.scanner-thumbnails {
+/* Info de fase */
+.scanner-phase-info {
   display: flex;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-6);
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-  width: 100%;
-  -webkit-overflow-scrolling: touch;
+  align-items: center;
+  gap: var(--space-3);
 }
 
-.scanner-thumbnails::-webkit-scrollbar {
-  display: none;
+.scanner-phase-title {
+  color: #fff;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
 }
 
-.scanner-thumb {
-  flex: 0 0 48px;
-  width: 48px;
-  height: 64px;
-  border-radius: var(--radius-sm);
-  object-fit: cover;
-  scroll-snap-align: center;
-  border: 2px solid transparent;
-  opacity: 0.7;
-  transition: all var(--transition-base);
-  cursor: pointer;
+.scanner-phase-count {
+  color: var(--color-accent);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  background: rgba(0, 122, 255, 0.15);
+  padding: 2px 10px;
+  border-radius: 12px;
 }
 
-.scanner-thumb.active {
-  border-color: #FFFFFF;
-  opacity: 1;
-}
-
-.scanner-thumb:hover {
-  opacity: 1;
-}
-
-/* Controles de captura */
+/* ── Controles de captura ─────────────────────────────────────────────── */
 .scanner-controls {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-10);
-  padding: var(--space-4) 0;
   width: 100%;
+  max-width: 280px;
 }
 
-/* Contador de páginas */
-.scanner-count {
+/* Botones laterales (galería / next) */
+.scanner-side-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  color: #FFFFFF;
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-}
-
-.scanner-count .badge {
-  background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: var(--backdrop-blur);
-  -webkit-backdrop-filter: var(--backdrop-blur);
-}
-
-/* Botón "Listo" / confirmar */
-.scanner-done {
-  padding: var(--space-3) var(--space-6);
-  background: var(--color-accent);
-  color: #FFFFFF;
-  border: none;
-  border-radius: var(--radius-2xl);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
+  justify-content: center;
   cursor: pointer;
   transition: all var(--transition-base);
-  min-height: var(--touch-min);
-  font-family: var(--font-family);
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
 }
 
-.scanner-done:hover {
+.scanner-side-btn:active {
+  transform: scale(0.9);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.scanner-side-placeholder {
+  visibility: hidden;
+}
+
+/* Botón next con acento */
+.scanner-next-btn {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.scanner-next-btn:active {
   background: var(--color-accent-hover);
 }
 
-.scanner-done:active {
-  transform: scale(0.95);
+/* ── Botón de captura ─────────────────────────────────────────────────── */
+.btn-capture {
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius-full);
+  background: none;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+  padding: 0;
 }
 
-.scanner-done:disabled {
-  opacity: 0.4;
-  pointer-events: none;
-}
-
-/* ── Animación de captura del botón ────────────────────────────────────── */
-@keyframes capture-pulse {
-  0% {
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  }
-  50% {
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), 0 0 0 12px rgba(255, 255, 255, 0.15);
-  }
-  100% {
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  }
-}
-
-.btn-capture.capturing {
-  animation: capture-pulse 1.5s ease-in-out infinite;
-}
-
-/* ── Pantalla de revisión de imagen ────────────────────────────────────── */
-.scanner-review {
+.btn-capture-ring {
   position: absolute;
   inset: 0;
-  background: var(--color-dark-bg);
-  z-index: 15;
+  border-radius: var(--radius-full);
+  border: 4px solid rgba(255, 255, 255, 0.8);
+  transition: all var(--transition-fast);
+}
+
+.btn-capture-fill {
+  position: absolute;
+  inset: 6px;
+  border-radius: var(--radius-full);
+  background: #fff;
+  transition: all var(--transition-fast);
+}
+
+.btn-capture:active .btn-capture-fill {
+  inset: 10px;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.btn-capture:active .btn-capture-ring {
+  border-color: #fff;
+}
+
+/* ── Fallback sin cámara ──────────────────────────────────────────────── */
+.scanner-fallback {
   display: flex;
   flex-direction: column;
-  opacity: 0;
-  visibility: hidden;
-  transition: all var(--transition-base);
-}
-
-.scanner-review.visible {
-  opacity: 1;
-  visibility: visible;
-}
-
-.scanner-review-image {
-  flex: 1;
-  display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-6);
-}
-
-.scanner-review-image img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  border-radius: var(--radius-md);
-}
-
-.scanner-review-actions {
-  display: flex;
   gap: var(--space-4);
-  padding: var(--space-6);
-  justify-content: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: var(--font-size-base);
+  cursor: pointer;
+  text-align: center;
+  padding: var(--space-8);
 }
 
-/* ── Responsive ────────────────────────────────────────────────────────── */
+/* ── Acciones (legacy, oculto) ────────────────────────────────────────── */
+.scanner-actions {
+  display: none;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────── */
 @media (min-width: 768px) {
   .scanner-guide {
-    max-width: 400px;
+    max-width: 360px;
   }
 
   .scanner-thumb {
-    flex: 0 0 56px;
-    width: 56px;
-    height: 76px;
+    flex: 0 0 52px;
+    width: 52px;
+    height: 68px;
   }
 }
 
-/* ── Movimiento reducido ───────────────────────────────────────────────── */
+/* ── Movimiento reducido ──────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .capture-flash.active {
-    animation: none;
-    opacity: 0;
+  .scanner-flash.flash-active {
+    transition: none;
   }
 
-  .btn-capture.capturing {
-    animation: none;
-  }
-
-  .scanner-phase-dot {
-    animation: none;
+  .scanner-step {
+    transition: none;
   }
 }

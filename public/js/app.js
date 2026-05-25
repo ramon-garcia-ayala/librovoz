@@ -2,6 +2,7 @@
 const App = {
   state: {
     coverImage: null,
+    coverThumbnail: null,
     coverInfo: { title: '', author: '', subtitle: '' },
     indexPages: [],
     bookPages: [],
@@ -11,13 +12,16 @@ const App = {
     chapters: [],
     selectedVoice: null,
     currentChapter: 0,
-    isPlaying: false
+    isPlaying: false,
+    _loadedBookId: null,
+    _savedSpeed: 1
   },
 
   currentScreen: null,
 
   screens: {
     landing: { partial: null, init: null },
+    library: { partial: '/pages/library.html', init: () => Library.init() },
     tutorial: { partial: '/pages/tutorial.html', init: () => Tutorial.init() },
     scanner: { partial: '/pages/scanner.html', init: () => Scanner.init() },
     processing: { partial: '/pages/processing.html', init: () => Processor.init() },
@@ -73,6 +77,66 @@ const App = {
     });
 
     config.init?.();
+    this.updateNavBar(screen);
+  },
+
+  renderNavBar() {
+    // Remove existing nav bar
+    const existing = document.getElementById('nav-bar');
+    if (existing) existing.remove();
+
+    const nav = document.createElement('nav');
+    nav.id = 'nav-bar';
+    nav.className = 'nav-bar';
+    nav.innerHTML = `
+      <button class="nav-bar-item" data-nav="landing" onclick="App.go('landing')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        <span>Inicio</span>
+      </button>
+      <button class="nav-bar-item" data-nav="library" onclick="App.go('library')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+        </svg>
+        <span>Biblioteca</span>
+      </button>
+      <button class="nav-bar-item" data-nav="scanner" onclick="App.go('tutorial')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+        <span>Escanear</span>
+      </button>
+    `;
+    document.body.appendChild(nav);
+  },
+
+  updateNavBar(screen) {
+    const hideOn = ['player', 'scanner'];
+    const nav = document.getElementById('nav-bar');
+
+    if (hideOn.includes(screen)) {
+      if (nav) nav.style.display = 'none';
+      return;
+    }
+
+    if (!nav) {
+      this.renderNavBar();
+    } else {
+      nav.style.display = 'flex';
+    }
+
+    // Highlight active tab
+    const navItems = document.querySelectorAll('.nav-bar-item');
+    navItems.forEach(item => {
+      const target = item.dataset.nav;
+      const isActive = target === screen ||
+        (target === 'scanner' && ['tutorial', 'processing', 'voices'].includes(screen));
+      item.classList.toggle('active', isActive);
+    });
   },
 
   go(screen) {

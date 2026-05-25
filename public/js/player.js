@@ -25,30 +25,34 @@ const Player = {
 
   init() {
     this.currentChapter = App.state.currentChapter || 0;
-    this.speed = 1;
-    this.speedIndex = 1;
+
+    // Restaurar velocidad si viene de libro guardado
+    const savedSpeed = App.state._savedSpeed || 1;
+    this.speedIndex = this.speeds.indexOf(savedSpeed);
+    if (this.speedIndex < 0) this.speedIndex = 1;
+    this.speed = this.speeds[this.speedIndex];
 
     this.setupCover();
     this.setupChapterTabs();
     this.loadChapter(this.currentChapter);
     this.setupScrollDetection();
     this.startChromeBugFix();
+
+    // Mostrar velocidad restaurada
+    const btn = document.getElementById('btn-speed');
+    if (btn) btn.textContent = this.speed + 'x';
   },
 
   setupCover() {
     const coverEl = document.getElementById('player-cover');
     const titleEl = document.getElementById('player-title');
 
-    if (coverEl && App.state.coverImage) {
-      coverEl.innerHTML = `<img src="data:image/jpeg;base64,${App.state.coverImage}" alt="Portada">`;
-
-      // Color dominante para fondo
-      Utils.getDominantColor(App.state.coverImage).then(color => {
-        const playerEl = document.querySelector('.player');
-        if (playerEl) {
-          playerEl.style.setProperty('--cover-color', color);
-        }
-      });
+    if (coverEl) {
+      if (App.state.coverImage) {
+        coverEl.innerHTML = `<img src="data:image/jpeg;base64,${App.state.coverImage}" alt="Portada">`;
+      } else if (App.state.coverThumbnail) {
+        coverEl.innerHTML = `<img src="${App.state.coverThumbnail}" alt="Portada">`;
+      }
     }
 
     if (titleEl) {
@@ -74,6 +78,9 @@ const Player = {
 
     this.currentChapter = index;
     App.state.currentChapter = index;
+
+    // Guardar progreso si es libro guardado
+    this.saveProgress();
 
     const chapter = App.state.chapters[index];
     if (!chapter) return;
@@ -312,6 +319,9 @@ const Player = {
     const btn = document.getElementById('btn-speed');
     if (btn) btn.textContent = this.speed + 'x';
 
+    // Guardar velocidad
+    this.saveProgress();
+
     // Si está reproduciendo, reiniciar con nueva velocidad
     if (this.isPlaying) {
       const currentWord = this.words[this.currentWordIndex];
@@ -407,7 +417,16 @@ const Player = {
     }, 14000);
   },
 
+  saveProgress() {
+    if (!App.state._loadedBookId) return;
+    DB.updatePlaybackState(App.state._loadedBookId, {
+      currentChapter: this.currentChapter,
+      speed: this.speed
+    }).catch(() => {});
+  },
+
   destroy() {
+    this.saveProgress();
     this.synth.cancel();
     this.isPlaying = false;
 

@@ -27,6 +27,22 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Prevenir desbordamiento de imágenes y media ─────────────────────── */
+img, video, canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+#app {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* ── Botones ───────────────────────────────────────────────────────────── */

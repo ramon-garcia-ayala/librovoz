@@ -1,37 +1,52 @@
-// LibroVoz - OCR Processing
+// LibroVoz - OCR Processing con paralelismo
 const OCR = {
+  // Procesar páginas en lotes paralelos para mayor velocidad
   async processAllPages(onProgress) {
     const pages = App.state.bookPages;
-    const texts = [];
+    const texts = new Array(pages.length).fill('');
+    const BATCH_SIZE = 3;
+    let completed = 0;
 
-    for (let i = 0; i < pages.length; i++) {
-      if (onProgress) onProgress(i + 1, pages.length);
-      try {
-        const result = await API.ocr(pages[i]);
-        texts.push(result.text || '');
-      } catch (err) {
-        console.error(`Error OCR página ${i + 1}:`, err);
-        texts.push('');
-        App.showToast(`Error leyendo página ${i + 1}`, 'error');
-      }
+    for (let i = 0; i < pages.length; i += BATCH_SIZE) {
+      const batch = pages.slice(i, i + BATCH_SIZE);
+      const promises = batch.map((page, j) => {
+        const idx = i + j;
+        return API.ocr(page)
+          .then(result => {
+            texts[idx] = result.text || '';
+          })
+          .catch(err => {
+            console.error(`Error OCR página ${idx + 1}:`, err);
+            texts[idx] = '';
+          })
+          .finally(() => {
+            completed++;
+            if (onProgress) onProgress(completed, pages.length);
+          });
+      });
+
+      await Promise.all(promises);
     }
 
     return texts.join('\n\n');
   },
 
+  // Procesar índice en paralelo
   async processIndex(indexPages) {
-    const texts = [];
+    if (indexPages.length === 0) return '';
 
-    for (let i = 0; i < indexPages.length; i++) {
-      try {
-        const result = await API.ocr(indexPages[i]);
-        texts.push(result.text || '');
-      } catch (err) {
-        console.error(`Error OCR índice ${i + 1}:`, err);
-        texts.push('');
-      }
-    }
+    const texts = new Array(indexPages.length).fill('');
 
+    const promises = indexPages.map((page, i) =>
+      API.ocr(page)
+        .then(result => { texts[i] = result.text || ''; })
+        .catch(err => {
+          console.error(`Error OCR índice ${i + 1}:`, err);
+          texts[i] = '';
+        })
+    );
+
+    await Promise.all(promises);
     return texts.join('\n');
   },
 
