@@ -1,15 +1,56 @@
 // LibroVoz - OCR Processing (Hybrid: Tesseract local + auto-fallback a Claude)
 const OCR = {
-  // pageMetadata[i] = { text, confidence, source: 'tesseract'|'claude', needsReview }
   pageMetadata: [],
 
-  // Umbral: bajo confianza o poco texto → auto-fallback a Claude
-  // MIN_CHARS subido a 150 para capturar páginas con figuras (poco texto, mucho dibujo)
   AUTO_FALLBACK_CONFIDENCE: 70,
   AUTO_FALLBACK_MIN_CHARS: 150,
+  QUALITY_THRESHOLD_FOR_POST_CLEAN: 0.85,
 
-  // Regex para detectar marcadores de figura insertados por Claude
   FIGURE_REGEX: /\[Figura\s+\d+:[^\]]+\]/g,
+
+  // Detecta si el texto de Tesseract es probablemente basura (símbolos random,
+  // palabras imposibles, sombras de tabla, etc.) — para forzar fallback a Claude
+  isLikelyGarbage(text) {
+    if (!text || text.length < 20) return false;
+    const t = text.replace(/\s/g, '');
+    if (t.length === 0) return false;
+
+    // % de chars no esperables en texto en español
+    const validChars = (t.match(/[a-záéíóúñüA-ZÁÉÍÓÚÑÜ0-9.,;:¡!¿?'"()\[\]\-—]/g) || []).length;
+    const garbageRatio = 1 - (validChars / t.length);
+    if (garbageRatio > 0.30) return true;
+
+    // Runs de símbolos de tabla/borde
+    if (/[|│┌┘─•▪░▒▓█@#%^&*]{3,}/.test(text)) return true;
+
+    // Palabras "imposibles" en español: muchas consonantes seguidas
+    const tokens = text.split(/\s+/).filter(w => w.length > 3);
+    if (tokens.length > 5) {
+      const weird = tokens.filter(w => /[bcdfghjklmnpqrstvwxz]{5,}/i.test(w)).length;
+      if (weird / tokens.length > 0.20) return true;
+    }
+
+    return false;
+  },
+
+  // Score 0-1 de calidad agregada del OCR. <0.85 → vale la pena post-clean
+  computeQualityScore() {
+    if (this.pageMetadata.length === 0) return 1;
+    let totalScore = 0;
+    for (const m of this.pageMetadata) {
+      let pageScore;
+      if (!m) {
+        pageScore = 0;
+      } else if (m.source === 'claude') {
+        pageScore = 0.99;
+      } else {
+        pageScore = Math.min(1, (m.confidence || 0) / 100);
+        if (this.isLikelyGarbage(m.text)) pageScore *= 0.5;
+      }
+      totalScore += pageScore;
+    }
+    return totalScore / this.pageMetadata.length;
+  },
 
   // Procesar páginas con Tesseract + auto-fallback a Claude si la calidad es baja
   async processAllPages(onProgress) {
@@ -37,7 +78,8 @@ const OCR = {
       };
 
       const lowQuality = tess.confidence < this.AUTO_FALLBACK_CONFIDENCE
-                      || tess.text.length < this.AUTO_FALLBACK_MIN_CHARS;
+                      || tess.text.length < this.AUTO_FALLBACK_MIN_CHARS
+                      || this.isLikelyGarbage(tess.text);
 
       if (lowQuality) {
         try {

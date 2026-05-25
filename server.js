@@ -146,7 +146,7 @@ app.post('/api/detect-cover', async (req, res) => {
 // Detectar capítulos + cleanup (con awareness de página si se envía `pages`)
 app.post('/api/detect-chapters', async (req, res) => {
   try {
-    const { text, indexText, pages } = req.body;
+    const { text, indexText, pages, hint } = req.body;
     if (!text && !pages) return res.status(400).json({ error: 'Falta el texto o las páginas' });
 
     // Construir representación con números de página si están disponibles
@@ -163,6 +163,10 @@ app.post('/api/detect-chapters', async (req, res) => {
       ? `\nÍndice del libro (orientativo):\n${indexText}\n`
       : '';
 
+    const hintBlock = (typeof hint === 'number' && hint > 0)
+      ? `\nIMPORTANTE: el usuario indicó que escaneó aproximadamente ${hint} capítulo${hint !== 1 ? 's' : ''}. Respeta este número como guía — no inventes más capítulos de los que haya. Si encuentras menos, está bien.\n`
+      : '';
+
     const pageInstructions = hasPageInfo
       ? `Cada página viene marcada con "=== PÁGINA N ===". Identifica los capítulos por su número de página de inicio y fin.`
       : `No tienes números de página. Identifica los capítulos por marcadores textuales.`;
@@ -172,7 +176,7 @@ app.post('/api/detect-chapters', async (req, res) => {
 1. **Detectar capítulos**: ${pageInstructions} Busca patrones como "Capítulo 1", "CAPÍTULO I", "Capítulo Uno", números romanos, o títulos en mayúsculas que marcan inicio.
 2. **Identificar basura del OCR**: las imágenes escaneadas a veces meten sombras, fragmentos de tablas, números de página al pie, headers repetidos, o caracteres de gráficos. Genera patrones regex (sin flags) para limpiarlos.
 3. **Sin reescribir**: NO modifiques el contenido. Solo dame metadata (rangos de páginas y patrones de regex).
-${indexBlock}
+${indexBlock}${hintBlock}
 Responde SOLO con JSON válido (sin texto extra) en este formato exacto:
 
 \`\`\`
@@ -256,6 +260,69 @@ app.post('/api/summarize', async (req, res) => {
   } catch (err) {
     console.error('Error summarize:', err.message);
     res.status(500).json({ error: 'Error al resumir el capítulo' });
+  }
+});
+
+// Post-clean: corregir texto OCR con Claude (sin inventar). Llamado solo si el quality
+// score local es bajo (libros con basura). Procesa en chunks para libros largos.
+app.post('/api/post-clean', async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text) return res.status(400).json({ error: 'Falta el texto' });
+
+    const MAX_CHUNK = 15000;
+    const chunks = [];
+    if (text.length > MAX_CHUNK) {
+      const paras = text.split(/\n\s*\n/);
+      let current = '';
+      for (const p of paras) {
+        if ((current + '\n\n' + p).length > MAX_CHUNK && current) {
+          chunks.push(current);
+          current = p;
+        } else {
+          current = current ? current + '\n\n' + p : p;
+        }
+      }
+      if (current) chunks.push(current);
+    } else {
+      chunks.push(text);
+    }
+
+    const cleaned = [];
+    for (const chunk of chunks) {
+      const prompt = `Esto es texto extraído por OCR de un libro en español. Tiene errores típicos:
+- Palabras partidas por saltos de línea (ej. "es-\\ntudio" → "estudio")
+- Caracteres random de sombras o bordes de tabla (|, │, ─, •, *, etc.)
+- Letras confundidas ('rn' por 'm', '1' por 'l', '0' por 'o')
+- Espacios faltantes o sobrantes
+
+REGLAS ESTRICTAS:
+1. Corrige palabras claramente mal leídas SOLO usando el contexto inmediato.
+2. NUNCA inventes contenido nuevo. Si una palabra no se puede recuperar, déjala como [?].
+3. NO añadas frases que no estén en el original.
+4. NO resumas, NO parafrasees.
+5. Conserva los saltos de párrafo (\\n\\n).
+6. Conserva números, nombres propios, citas literales tal cual.
+7. Si ves marcadores [Figura N: ...], déjalos intactos.
+8. Quita basura claramente OCR (líneas de | o números sueltos al final).
+9. Devuelve SOLO el texto corregido, sin comentarios, sin explicaciones, sin "Texto corregido:".
+
+Texto OCR a corregir:
+
+${chunk}`;
+
+      const response = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 4096,
+        messages: [{ role: 'user', content: prompt }]
+      });
+      cleaned.push(response.content[0]?.text || chunk);
+    }
+
+    res.json({ text: cleaned.join('\n\n') });
+  } catch (err) {
+    console.error('Error post-clean:', err.message);
+    res.status(500).json({ error: 'Error al limpiar el texto' });
   }
 });
 

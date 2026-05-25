@@ -1,6 +1,32 @@
 // LibroVoz - Pipeline de procesamiento (Tesseract local + Claude para chapters/cover)
 const Processor = {
+  // Si vino de PDF nativo, no preguntar capítulos (auto)
   async init() {
+    // Si ya viene del PDF con texto, saltar el modal
+    if (App.state._prefetchedFullText) {
+      App.state._chapterHint = 'auto';
+      this._runPipeline();
+      return;
+    }
+    // Mostrar modal de hint primero
+    const modal = document.getElementById('chapter-hint-modal');
+    if (modal) {
+      modal.classList.add('visible');
+    } else {
+      // Sin modal disponible (carga vieja de partial?) → auto
+      App.state._chapterHint = 'auto';
+      this._runPipeline();
+    }
+  },
+
+  setChapterHint(value) {
+    App.state._chapterHint = value;
+    const modal = document.getElementById('chapter-hint-modal');
+    if (modal) modal.classList.remove('visible');
+    this._runPipeline();
+  },
+
+  async _runPipeline() {
     const statusEl = document.getElementById('processing-status');
     const fillEl = document.getElementById('processing-fill');
     const detailEl = document.getElementById('processing-detail');
@@ -51,7 +77,7 @@ const Processor = {
 
       // 2. Procesar páginas — si vienen de PDF nativo, ya tenemos el texto
       if (App.state._prefetchedFullText) {
-        setProgress(75, 'Texto extraído del PDF', 'Sin necesidad de OCR');
+        setProgress(60, 'Texto extraído del PDF', 'Sin necesidad de OCR');
         App.state.fullText = App.state._prefetchedFullText;
         App.state._prefetchedFullText = null;
       } else {
@@ -59,32 +85,58 @@ const Processor = {
         setProgress(15, 'Leyendo páginas en tu dispositivo...', `0 de ${total}`);
 
         App.state.fullText = await OCR.processAllPages((current, total, meta, fallbackCount, figuresCount) => {
-          const pct = 15 + Math.round((current / total) * 60);
+          const pct = 15 + Math.round((current / total) * 50);
           const aiLabel = fallbackCount > 0 ? ` · ${fallbackCount} con IA` : '';
           const figLabel = figuresCount > 0 ? ` · ${figuresCount} figura${figuresCount !== 1 ? 's' : ''}` : '';
           setProgress(pct, 'Leyendo páginas en tu dispositivo...', `${current} de ${total}${aiLabel}${figLabel}`);
         });
+
+        // 2.5 Post-clean condicional: si el OCR tuvo mucha basura, llamar Claude
+        const quality = OCR.computeQualityScore();
+        if (quality < OCR.QUALITY_THRESHOLD_FOR_POST_CLEAN) {
+          setProgress(70, 'Limpiando texto con IA...', 'Corrigiendo errores del OCR');
+          try {
+            const cleaned = await API.postClean(App.state.fullText);
+            if (cleaned && cleaned.text && cleaned.text.length > 100) {
+              App.state.fullText = cleaned.text;
+              // Reconstruir pageMetadata: el texto cambió, así que perdemos la granularidad
+              // por página, pero ganamos calidad. Los chapters se sliceará por chars no por page.
+              OCR.pageMetadata = OCR.pageMetadata.map(m => ({ ...m, text: '' }));
+            }
+          } catch (err) {
+            console.warn('post-clean falló, continuando con texto original:', err.message);
+          }
+        }
       }
 
-      // 3. Detectar capítulos + cleanup (con awareness de página)
-      setProgress(80, 'Estructurando capítulos...', 'Claude revisa y limpia el texto');
+      // 3. Detectar capítulos + cleanup (con awareness de página + hint del usuario)
+      setProgress(80, 'Estructurando capítulos...', 'Claude organiza tu libro');
 
-      // Construir pages[] desde OCR.pageMetadata (si vino de scan, no de PDF nativo)
+      // Construir pages[] solo si NO hicimos post-clean (porque destruimos la granularidad)
       let pages = null;
-      if (Array.isArray(OCR.pageMetadata) && OCR.pageMetadata.length > 0) {
+      const hasPageGranularity = Array.isArray(OCR.pageMetadata)
+        && OCR.pageMetadata.length > 0
+        && OCR.pageMetadata.some(m => m && m.text);
+      if (hasPageGranularity) {
         pages = OCR.pageMetadata.map((m, i) => ({
           num: i + 1,
           text: (m && m.text) ? m.text : ''
         }));
       }
 
-      const detection = await Chapters.detect(App.state.fullText, App.state.indexText, pages);
-      App.state.chapters = Chapters.splitText(
+      const hint = App.state._chapterHint || 'auto';
+      const detection = await Chapters.detect(App.state.fullText, App.state.indexText, pages, hint);
+
+      let builtChapters = Chapters.splitText(
         App.state.fullText,
         detection.chapters,
         pages,
         detection.junkPatterns
       );
+
+      // Validar y fusionar capítulos minúsculos
+      builtChapters = Chapters.validateAndMerge(builtChapters);
+      App.state.chapters = builtChapters;
       App.state._lastJunkPatterns = detection.junkPatterns || [];
 
       // 4. Mostrar páginas que necesitan revisión + modo

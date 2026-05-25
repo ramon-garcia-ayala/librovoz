@@ -1,3 +1,18 @@
+<!-- Modal: hint de capítulos antes de procesar -->
+<div class="chapter-hint-modal" id="chapter-hint-modal">
+  <div class="chapter-hint-card">
+    <h2>¿Cuántos capítulos escaneaste?</h2>
+    <p>Esto ayuda a estructurar tu libro correctamente.</p>
+    <div class="chapter-hint-options">
+      <button class="chapter-hint-opt" onclick="Processor.setChapterHint(1)">Solo 1 capítulo</button>
+      <button class="chapter-hint-opt" onclick="Processor.setChapterHint(3)">Entre 2 y 3</button>
+      <button class="chapter-hint-opt" onclick="Processor.setChapterHint(5)">Entre 4 y 5</button>
+      <button class="chapter-hint-opt" onclick="Processor.setChapterHint(10)">6 o más</button>
+      <button class="chapter-hint-opt chapter-hint-opt-auto" onclick="Processor.setChapterHint('auto')">Detectar automáticamente</button>
+    </div>
+  </div>
+</div>
+
 <div class="processing">
   <!-- Info del libro -->
   <div class="processing-header">

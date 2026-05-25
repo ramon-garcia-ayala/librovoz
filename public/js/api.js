@@ -39,8 +39,8 @@ const API = {
     return this._fetch('/detect-cover', { image: imageBase64 });
   },
 
-  async detectChapters(text, indexText, pages) {
-    return this._fetch('/detect-chapters', { text, indexText, pages });
+  async detectChapters(text, indexText, pages, hint) {
+    return this._fetch('/detect-chapters', { text, indexText, pages, hint });
   },
 
   async summarize(text, chapterName) {
@@ -49,6 +49,11 @@ const API = {
 
   async chat(bookText, bookTitle, messages, question) {
     return this._fetch('/chat', { bookText, bookTitle, messages, question });
+  },
+
+  async postClean(text) {
+    // Timeout más largo: chunks de 15k pueden tardar 30-60s cada uno
+    return this._fetch('/post-clean', { text }, 180000);
   },
 
   async health() {

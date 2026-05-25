@@ -1,9 +1,19 @@
 // LibroVoz - Detección + estructuración de capítulos con awareness de página
 const Chapters = {
-  // pages: array opcional [{num, text}] de páginas individuales (Tesseract output)
-  async detect(fullText, indexText, pages) {
+  MIN_CHAPTER_CHARS: 500,
+
+  // hint: 'auto' | number (1, 3, 5, 10) — cantidad esperada de capítulos
+  async detect(fullText, indexText, pages, hint) {
+    // Atajo: si el usuario dijo que solo escaneó 1 capítulo, no llamar API
+    if (hint === 1) {
+      return {
+        chapters: [{ name: 'Libro completo', startChar: 0, endChar: fullText.length }],
+        junkPatterns: []
+      };
+    }
+
     try {
-      const result = await API.detectChapters(fullText, indexText, pages);
+      const result = await API.detectChapters(fullText, indexText, pages, hint);
       const chapters = result.chapters || [];
       const junkPatterns = result.junkPatterns || [];
       if (chapters.length > 0) {
@@ -13,6 +23,46 @@ const Chapters = {
       console.error('Error detectando capítulos:', err);
     }
     return { chapters: this.fallbackChapters(fullText), junkPatterns: [] };
+  },
+
+  // Fusionar capítulos minúsculos. Si la mayoría son fragmentos, unificar todo.
+  validateAndMerge(chapters) {
+    if (!chapters || chapters.length <= 1) return chapters;
+
+    const tinyCount = chapters.filter(c => (c.text || '').length < this.MIN_CHAPTER_CHARS).length;
+    if (tinyCount / chapters.length > 0.5) {
+      return [{
+        title: chapters[0].title || 'Libro completo',
+        text: chapters.map(c => c.text || '').filter(Boolean).join('\n\n')
+      }];
+    }
+
+    const result = [];
+    let pending = null;
+    for (const ch of chapters) {
+      const textLen = (ch.text || '').length;
+      if (textLen < this.MIN_CHAPTER_CHARS) {
+        pending = pending
+          ? { title: pending.title, text: pending.text + '\n\n' + (ch.text || '') }
+          : { title: ch.title, text: ch.text || '' };
+      } else {
+        if (pending) {
+          result.push({ title: pending.title, text: pending.text + '\n\n' + (ch.text || '') });
+          pending = null;
+        } else {
+          result.push(ch);
+        }
+      }
+    }
+    if (pending) {
+      if (result.length > 0) {
+        const last = result[result.length - 1];
+        result[result.length - 1] = { title: last.title, text: last.text + '\n\n' + pending.text };
+      } else {
+        result.push(pending);
+      }
+    }
+    return result;
   },
 
   fallbackChapters(fullText) {
