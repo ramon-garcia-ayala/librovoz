@@ -111,6 +111,50 @@ const Scanner = {
     document.getElementById('file-input-camera')?.click();
   },
 
+  openPdfPicker() {
+    const input = document.getElementById('file-input-pdf');
+    if (!input) return;
+    // Setup handler una sola vez
+    if (!input._handlerAttached) {
+      input.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (file) await this.processPdfFile(file);
+        input.value = '';
+      });
+      input._handlerAttached = true;
+    }
+    input.click();
+  },
+
+  async processPdfFile(file) {
+    App.showToast('Procesando PDF...', 'info');
+    try {
+      const result = await PDFExtract.extract(file, (current, total) => {
+        // Toast simple — pdf.js es rápido
+        if (current === total) App.showToast(`PDF leído: ${total} páginas`, 'info');
+      });
+
+      // Aplicar a App.state como si hubiese escaneado
+      App.state.coverImage = result.coverBase64;
+      App.state.indexPages = [];
+      App.state.bookPages = result.pages.map(p => p.image || '');
+
+      // Si todas las páginas tenían texto extraíble, saltamos Tesseract en processor:
+      // guardamos el fullText pre-extraído. Si no, dejamos que Tesseract corra sobre las imágenes.
+      const allHaveText = result.pages.every(p => p.text && p.text.length > 30);
+      if (allHaveText) {
+        App.state._prefetchedFullText = result.pages.map(p => p.text).join('\n\n');
+      } else {
+        App.state._prefetchedFullText = null;
+      }
+
+      App.go('processing');
+    } catch (err) {
+      console.error('Error extrayendo PDF:', err);
+      App.showToast('No se pudo leer el PDF', 'error');
+    }
+  },
+
   fileToBase64(file) {
     return new Promise((resolve) => {
       const reader = new FileReader();

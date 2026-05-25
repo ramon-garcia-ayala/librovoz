@@ -51,6 +51,16 @@
   <input type="file" id="file-input" accept="image/*" style="display:none">
   <input type="file" id="file-input-multi" accept="image/*" style="display:none" multiple>
   <input type="file" id="file-input-camera" accept="image/*" capture="environment" style="display:none">
+  <input type="file" id="file-input-pdf" accept="application/pdf,.pdf" style="display:none">
+
+  <!-- Botón flotante PDF (atajo: salta cover/index y carga libro directo) -->
+  <button class="scanner-pdf-btn" id="btn-pdf" onclick="Scanner.openPdfPicker()" title="Subir PDF">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <text x="6" y="18" font-size="6" font-weight="bold" fill="currentColor" stroke="none">PDF</text>
+    </svg>
+  </button>
 
   <!-- Thumbnails strip -->
   <div class="scanner-thumbstrip" id="scanner-thumbnails"></div>

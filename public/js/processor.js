@@ -1,4 +1,4 @@
-// LibroVoz - Pipeline de procesamiento optimizado
+// LibroVoz - Pipeline de procesamiento (Tesseract local + Claude para chapters/cover)
 const Processor = {
   async init() {
     const statusEl = document.getElementById('processing-status');
@@ -7,6 +7,7 @@ const Processor = {
     const coverEl = document.getElementById('processing-cover');
     const titleEl = document.getElementById('processing-title');
     const authorEl = document.getElementById('processing-author');
+    const privacyEl = document.getElementById('processing-privacy');
 
     const setProgress = (pct, text, detail) => {
       if (fillEl) fillEl.style.width = pct + '%';
@@ -14,12 +15,15 @@ const Processor = {
       if (detailEl) detailEl.textContent = detail || '';
     };
 
+    if (privacyEl) privacyEl.style.display = 'block';
+
     try {
-      // 1. Portada e índice en paralelo
+      // 1. Portada (Claude vision con imagen chica 1024px) + Índice (Tesseract local) en paralelo
       setProgress(5, 'Analizando portada e índice...', '');
 
+      const coverSmall = await Utils.resizeImageForCover(App.state.coverImage);
       const [coverInfo, indexText] = await Promise.all([
-        OCR.processCover(App.state.coverImage),
+        OCR.processCover(coverSmall),
         OCR.processIndex(App.state.indexPages)
       ]);
 
@@ -32,19 +36,37 @@ const Processor = {
         coverEl.innerHTML = `<img src="data:image/jpeg;base64,${App.state.coverImage}" alt="Portada">`;
       }
 
-      // 2. Procesar páginas en paralelo (lotes de 3)
-      setProgress(20, 'Leyendo páginas...', `0 de ${App.state.bookPages.length}`);
-      App.state.fullText = await OCR.processAllPages((current, total) => {
-        const pct = 20 + Math.round((current / total) * 50);
-        setProgress(pct, 'Leyendo páginas...', `${current} de ${total}`);
-      });
+      // 2. Procesar páginas — si vienen de PDF nativo, ya tenemos el texto
+      if (App.state._prefetchedFullText) {
+        setProgress(75, 'Texto extraído del PDF', 'Sin necesidad de OCR');
+        App.state.fullText = App.state._prefetchedFullText;
+        App.state._prefetchedFullText = null;
+      } else {
+        const total = App.state.bookPages.length;
+        setProgress(15, 'Leyendo páginas en tu dispositivo...', `0 de ${total}`);
 
-      // 3. Detectar capítulos
-      setProgress(75, 'Detectando capítulos...', '');
+        App.state.fullText = await OCR.processAllPages((current, total, meta) => {
+          const pct = 15 + Math.round((current / total) * 60);
+          const reviewCount = OCR.getReviewablePages().length;
+          const reviewLabel = reviewCount > 0 ? ` · ${reviewCount} para revisar` : '';
+          setProgress(pct, 'Leyendo páginas en tu dispositivo...', `${current} de ${total}${reviewLabel}`);
+        });
+      }
+
+      // 3. Detectar capítulos (Claude, text-only, barato)
+      setProgress(80, 'Detectando capítulos...', '');
       const rawChapters = await Chapters.detect(App.state.fullText, App.state.indexText);
       App.state.chapters = Chapters.splitText(App.state.fullText, rawChapters);
 
-      setProgress(100, 'Listo', `${App.state.chapters.length} capítulo(s) detectado(s)`);
+      // 4. Mostrar páginas que necesitan revisión + modo
+      const reviewable = OCR.getReviewablePages();
+      setProgress(100, 'Listo', `${App.state.chapters.length} capítulo(s)`);
+
+      if (privacyEl) privacyEl.style.display = 'none';
+
+      if (reviewable.length > 0) {
+        this.renderReviewablePages(reviewable);
+      }
 
       // Mostrar selector de modo
       const progressEl = document.getElementById('processing-progress');
@@ -56,6 +78,57 @@ const Processor = {
       console.error('Error en procesamiento:', err);
       setProgress(0, 'Error al procesar', err.message);
       App.showToast('Error procesando el libro: ' + err.message, 'error');
+    }
+  },
+
+  // Render lista de páginas que Tesseract no leyó bien
+  renderReviewablePages(reviewable) {
+    const container = document.getElementById('processing-review');
+    if (!container) return;
+
+    container.innerHTML = `
+      <div class="review-header">
+        <h3>${reviewable.length} página(s) con texto poco claro</h3>
+        <p>Puedes reescanear con IA para mejor calidad (cuesta 1 crédito adicional cada 100 páginas)</p>
+      </div>
+      <div class="review-list">
+        ${reviewable.map(p => `
+          <div class="review-item" id="review-item-${p.index}">
+            <img src="data:image/jpeg;base64,${App.state.bookPages[p.index]}" class="review-thumb">
+            <div class="review-info">
+              <div class="review-title">Página ${p.index + 1}</div>
+              <div class="review-detail">${p.text.length} caracteres · ${Math.round(p.confidence)}% confianza</div>
+            </div>
+            <button class="review-btn" onclick="Processor.reprocessPage(${p.index})">
+              Reescanear con IA
+            </button>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    container.style.display = 'block';
+  },
+
+  async reprocessPage(index) {
+    const itemEl = document.getElementById(`review-item-${index}`);
+    if (itemEl) {
+      const btn = itemEl.querySelector('.review-btn');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Procesando...';
+      }
+    }
+
+    const newText = await OCR.reprocessPageWithAI(index);
+    if (newText) {
+      App.showToast('Página reescaneada', 'info');
+      if (itemEl) itemEl.remove();
+    } else {
+      const btn = itemEl?.querySelector('.review-btn');
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Reintentar';
+      }
     }
   },
 
@@ -88,6 +161,9 @@ const Processor = {
         App.showToast('Error al resumir. Se usará el texto completo.', 'error');
       }
     }
+
+    // Liberar memoria de Tesseract antes de pasar al player
+    try { await TesseractOCR.terminate(); } catch {}
 
     App.go('voices');
   }

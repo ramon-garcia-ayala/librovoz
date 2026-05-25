@@ -1,5 +1,10 @@
 // LibroVoz - Utilidades
 const Utils = {
+  // Resize chico para vision calls (cover) — menos tokens
+  resizeImageForCover(base64) {
+    return this.resizeImage(base64, 1024);
+  },
+
   // Redimensionar imagen a max width, devolver base64 JPEG
   resizeImage(base64, maxWidth = 1500) {
     return new Promise((resolve) => {

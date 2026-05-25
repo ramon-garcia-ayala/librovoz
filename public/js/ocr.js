@@ -1,55 +1,62 @@
-// LibroVoz - OCR Processing con paralelismo
+// LibroVoz - OCR Processing (Tesseract client-side + fallback manual a Claude)
 const OCR = {
-  // Procesar páginas en lotes paralelos para mayor velocidad
+  // pageMetadata[i] = { text, needsReview, confidence } por cada página
+  pageMetadata: [],
+
+  // Procesar páginas con Tesseract (gratis, client-side)
   async processAllPages(onProgress) {
     const pages = App.state.bookPages;
-    const texts = new Array(pages.length).fill('');
-    const BATCH_SIZE = 3;
+    this.pageMetadata = new Array(pages.length).fill(null);
     let completed = 0;
 
-    for (let i = 0; i < pages.length; i += BATCH_SIZE) {
-      const batch = pages.slice(i, i + BATCH_SIZE);
-      const promises = batch.map((page, j) => {
-        const idx = i + j;
-        return API.ocr(page)
-          .then(result => {
-            texts[idx] = result.text || '';
-          })
-          .catch(err => {
-            console.error(`Error OCR página ${idx + 1}:`, err);
-            texts[idx] = '';
-          })
-          .finally(() => {
-            completed++;
-            if (onProgress) onProgress(completed, pages.length);
-          });
-      });
-
-      await Promise.all(promises);
+    // Tesseract no se puede paralelizar fácilmente (1 worker), así que secuencial
+    for (let i = 0; i < pages.length; i++) {
+      const result = await TesseractOCR.recognize(pages[i]);
+      this.pageMetadata[i] = {
+        text: result.text,
+        confidence: result.confidence,
+        needsReview: result.needsReview
+      };
+      completed++;
+      if (onProgress) onProgress(completed, pages.length, this.pageMetadata[i]);
     }
 
-    return texts.join('\n\n');
+    return this.pageMetadata.map(m => m.text).join('\n\n');
   },
 
-  // Procesar índice en paralelo
+  // Re-procesar una página específica con Claude (cuando el usuario hace tap "reescanear con IA")
+  async reprocessPageWithAI(pageIndex) {
+    const image = App.state.bookPages[pageIndex];
+    if (!image) return null;
+    try {
+      const result = await API.ocr(image);
+      this.pageMetadata[pageIndex] = {
+        text: result.text || '',
+        confidence: 99,
+        needsReview: false
+      };
+      // Reconstruir fullText
+      App.state.fullText = this.pageMetadata.map(m => m.text).join('\n\n');
+      return result.text;
+    } catch (err) {
+      console.error('Error reprocesando con IA:', err);
+      App.showToast('Error al reescanear esta página', 'error');
+      return null;
+    }
+  },
+
+  // Procesar índice con Tesseract también (pocas páginas, baratos)
   async processIndex(indexPages) {
     if (indexPages.length === 0) return '';
-
-    const texts = new Array(indexPages.length).fill('');
-
-    const promises = indexPages.map((page, i) =>
-      API.ocr(page)
-        .then(result => { texts[i] = result.text || ''; })
-        .catch(err => {
-          console.error(`Error OCR índice ${i + 1}:`, err);
-          texts[i] = '';
-        })
-    );
-
-    await Promise.all(promises);
+    const texts = [];
+    for (const page of indexPages) {
+      const result = await TesseractOCR.recognize(page);
+      texts.push(result.text);
+    }
     return texts.join('\n');
   },
 
+  // Cover SÍ usa Claude (Tesseract no lee bien títulos estilizados)
   async processCover(coverImage) {
     try {
       const result = await API.detectCover(coverImage);
@@ -62,5 +69,12 @@ const OCR = {
       console.error('Error detectando portada:', err);
       return { title: 'Libro sin título', author: 'Autor desconocido', subtitle: '' };
     }
+  },
+
+  // Cuántas páginas necesitan revisión manual
+  getReviewablePages() {
+    return this.pageMetadata
+      .map((m, i) => ({ ...m, index: i }))
+      .filter(m => m && m.needsReview);
   }
 };

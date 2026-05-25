@@ -15,7 +15,14 @@
       <div class="progress-fill" id="processing-fill" style="width:0%"></div>
     </div>
     <p class="processing-detail" id="processing-detail"></p>
+    <div class="processing-privacy" id="processing-privacy" style="display:none">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <span>Las páginas se procesan en tu dispositivo. No salen de tu teléfono.</span>
+    </div>
   </div>
+
+  <!-- Lista de páginas que necesitan revisión (oculto hasta que aparezcan) -->
+  <div class="processing-review" id="processing-review" style="display:none"></div>
 
   <!-- Selección de modo (oculto hasta que termine OCR) -->
   <div class="processing-modes" id="processing-modes" style="display:none">
