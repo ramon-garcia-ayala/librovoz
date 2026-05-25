@@ -29,6 +29,158 @@
   animation: breath var(--dur-breath) var(--ease-breath) infinite;
 }
 
+/* ── Mascota: pajarito pixel-art ─────────────────────────────────────── */
+.landing-bird {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0 0 var(--space-5);
+  cursor: pointer;
+  display: inline-block;
+  -webkit-tap-highlight-color: transparent;
+  animation: bird-bob 2.2s var(--ease-glass) infinite;
+}
+
+.landing-bird-svg {
+  display: block;
+  filter: drop-shadow(0 8px 16px rgba(139, 163, 184, 0.25));
+}
+
+/* Bob vertical suave */
+@keyframes bird-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* Parpadeo: cierra ambos ojos cada 4s */
+.bird-eye,
+.bird-eye-pupil {
+  transform-origin: center center;
+  transform-box: fill-box;
+  animation: bird-blink 4s var(--ease-glass) infinite;
+}
+
+@keyframes bird-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95%, 97% { transform: scaleY(0.1); }
+}
+
+/* Aleteo del ala cuando hover/tap */
+.bird-wing {
+  transform-origin: 28px 60px;
+  transition: transform var(--dur-base) var(--ease-glass);
+}
+
+.landing-bird:hover .bird-wing,
+.landing-bird.bird-flap .bird-wing {
+  animation: bird-flap 0.4s var(--ease-glass);
+}
+
+@keyframes bird-flap {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  30% { transform: translateY(-4px) rotate(-12deg); }
+  60% { transform: translateY(2px) rotate(6deg); }
+}
+
+.landing-bird.bird-flap {
+  animation: bird-bob 2.2s var(--ease-glass) infinite, bird-jump 0.4s var(--ease-glass);
+}
+
+@keyframes bird-jump {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+/* ── Ventajas (3 cards glass compactas) ────────────────────────────── */
+.landing-benefits {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 420px;
+  margin-top: var(--space-6);
+  margin-bottom: var(--space-6);
+}
+
+.landing-benefit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: var(--space-4) var(--space-2);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  text-align: center;
+  color: var(--color-text-secondary);
+  opacity: 0;
+  animation: fade-in-up var(--dur-slow) var(--ease-glass) forwards;
+  animation-delay: var(--delay, 0ms);
+  transition: transform var(--dur-base) var(--ease-glass),
+              border-color var(--dur-base) var(--ease-glass);
+}
+
+.landing-benefit:hover {
+  transform: translateY(-2px);
+  border-color: rgba(var(--accent-rgb), 0.30);
+}
+
+.landing-benefit svg {
+  color: var(--color-accent);
+  margin-bottom: 2px;
+}
+
+.landing-benefit h3 {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  letter-spacing: var(--tracking-base);
+  margin: 0;
+}
+
+.landing-benefit p {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  margin: 0;
+  line-height: 1.3;
+}
+
+/* ── CTAs ─────────────────────────────────────────────────────────── */
+.landing-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: center;
+  width: 100%;
+  max-width: 320px;
+}
+
+.landing-btn {
+  width: 100%;
+}
+
+.landing-btn-secondary {
+  width: 100%;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Respeto a a11y */
+@media (prefers-reduced-motion: reduce) {
+  .landing-bird,
+  .landing-bird .bird-wing,
+  .bird-eye,
+  .bird-eye-pupil,
+  .landing-logo,
+  .landing-benefit {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+}
+
 .landing-title {
   font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-semibold);
