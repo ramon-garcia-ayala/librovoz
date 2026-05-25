@@ -1,12 +1,8 @@
-[
-  {
-    "relation": ["delegate_permission/common.handle_all_urls"],
-    "target": {
-      "namespace": "android_app",
-      "package_name": "app.librovoz.twa",
-      "sha256_cert_fingerprints": [
-        "REEMPLAZAR_DESPUES_DE_FIRMAR_APK_CON_PWABUILDER"
-      ]
-    }
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.onrender.librovoz.twa",
+    "sha256_cert_fingerprints": ["17:D6:21:73:E2:94:F8:3C:12:F6:A7:7D:06:7A:2E:4D:28:E3:D5:AD:B6:35:AC:E4:53:C1:20:99:36:00:22:39"]
   }
-]
+}]
