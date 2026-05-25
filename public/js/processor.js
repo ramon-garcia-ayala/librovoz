@@ -26,6 +26,142 @@ const Processor = {
     this._runPipeline();
   },
 
+  // ── Quality gate (después de Tesseract, antes de Claude) ─────────────
+  // Returns una promesa que resuelve con 'continue' | 'retake' | 'cancel'
+  async runQualityGate() {
+    const quality = OCR.computeQualityScore();
+    const badPages = OCR.getBadPages(0.55);
+    const totalPages = OCR.pageMetadata.length;
+    const badRatio = badPages.length / Math.max(1, totalPages);
+
+    // Calidad muy buena → continúa sin molestar
+    if (quality >= 0.75 && badRatio < 0.2) {
+      return 'continue';
+    }
+
+    // Calidad razonable, pocas malas → continuar silenciosamente
+    if (quality >= 0.65 && badPages.length <= 2) {
+      return 'continue';
+    }
+
+    // Mostrar modal de quality gate
+    return new Promise((resolve) => {
+      this._qualityGateResolve = resolve;
+      this._renderQualityGate({ quality, badPages, totalPages, badRatio });
+    });
+  },
+
+  _renderQualityGate({ quality, badPages, totalPages, badRatio }) {
+    const modal = document.getElementById('quality-gate-modal');
+    if (!modal) {
+      // Sin modal disponible → continuar para no bloquear
+      return this._qualityGateResolve && this._qualityGateResolve('continue');
+    }
+
+    const severity = quality < 0.4 ? 'severe' : (badRatio > 0.4 ? 'high' : 'medium');
+    const titleText = severity === 'severe'
+      ? 'La calidad de las fotos es muy baja'
+      : 'Algunas páginas se ven mal';
+    const subtitleText = severity === 'severe'
+      ? 'Te recomendamos volver a escanear con mejor luz y enfoque.'
+      : `${badPages.length} de ${totalPages} páginas no se leyeron bien. Te recomendamos re-tomarlas.`;
+
+    const body = document.getElementById('quality-gate-body');
+    const title = document.getElementById('quality-gate-title');
+    const subtitle = document.getElementById('quality-gate-subtitle');
+
+    if (title) title.textContent = titleText;
+    if (subtitle) subtitle.textContent = subtitleText;
+
+    if (body) {
+      body.innerHTML = badPages.slice(0, 24).map(p => `
+        <div class="quality-gate-page" id="quality-gate-page-${p.index}">
+          <img src="data:image/jpeg;base64,${App.state.bookPages[p.index]}" alt="Página ${p.index + 1}">
+          <div class="quality-gate-page-info">
+            <span class="quality-gate-page-num">Página ${p.index + 1}</span>
+            <span class="quality-gate-page-score">${Math.round(p.score * 100)}%</span>
+          </div>
+          <button class="quality-gate-page-btn" onclick="Processor.retakeBadPage(${p.index})">
+            Re-tomar
+          </button>
+        </div>
+      `).join('') + (badPages.length > 24 ? `<p class="quality-gate-more">+ ${badPages.length - 24} más</p>` : '');
+    }
+
+    modal.classList.add('visible');
+  },
+
+  // Cuando usuario tap "Re-tomar página N" → abrir cámara nativa para esa página
+  retakeBadPage(index) {
+    const input = document.getElementById('quality-retake-input');
+    if (!input) return;
+    this._retakingIndex = index;
+    if (!input._wired) {
+      input.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        const targetIdx = this._retakingIndex;
+        input.value = '';
+        if (file == null || targetIdx == null) return;
+        await this._handleRetakeFile(file, targetIdx);
+      });
+      input._wired = true;
+    }
+    input.click();
+  },
+
+  async _handleRetakeFile(file, index) {
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = () => reject(new Error('No se pudo leer la foto'));
+        reader.readAsDataURL(file);
+      });
+      const resized = await Utils.resizeImage(base64);
+      App.state.bookPages[index] = resized;
+
+      // Re-correr Tesseract en esa página
+      const meta = await OCR.tesseractReprocessPage(index);
+
+      // Actualizar UI: si el score mejoró, remover el card; si sigue mal, actualizar
+      const card = document.getElementById(`quality-gate-page-${index}`);
+      if (card) {
+        if (meta && meta.score >= 0.55) {
+          card.classList.add('quality-gate-page-fixed');
+          setTimeout(() => card.remove(), 400);
+          App.showToast(`Página ${index + 1} mejorada`, 'info');
+        } else {
+          const scoreEl = card.querySelector('.quality-gate-page-score');
+          if (scoreEl) scoreEl.textContent = `${Math.round(meta.score * 100)}%`;
+          App.showToast('Aún se ve regular. Intenta con mejor luz.', 'info');
+        }
+      }
+    } catch (err) {
+      console.error('Error re-tomando página:', err);
+      App.showToast('Error al procesar la foto', 'error');
+    } finally {
+      this._retakingIndex = null;
+    }
+  },
+
+  qualityGateContinue() {
+    const modal = document.getElementById('quality-gate-modal');
+    if (modal) modal.classList.remove('visible');
+    if (this._qualityGateResolve) {
+      this._qualityGateResolve('continue');
+      this._qualityGateResolve = null;
+    }
+  },
+
+  qualityGateCancel() {
+    const modal = document.getElementById('quality-gate-modal');
+    if (modal) modal.classList.remove('visible');
+    if (this._qualityGateResolve) {
+      this._qualityGateResolve('cancel');
+      this._qualityGateResolve = null;
+    }
+  },
+
   async _runPipeline() {
     const statusEl = document.getElementById('processing-status');
     const fillEl = document.getElementById('processing-fill');
@@ -82,13 +218,30 @@ const Processor = {
         App.state._prefetchedFullText = null;
       } else {
         const total = App.state.bookPages.length;
-        setProgress(15, 'Leyendo páginas en tu dispositivo...', `0 de ${total}`);
 
-        App.state.fullText = await OCR.processAllPages((current, total, meta, fallbackCount, figuresCount) => {
-          const pct = 15 + Math.round((current / total) * 50);
+        // Pase 1: Tesseract local
+        setProgress(15, 'Leyendo páginas en tu dispositivo...', `0 de ${total}`);
+        await OCR.tesseractPass((current, total) => {
+          const pct = 15 + Math.round((current / total) * 30);
+          setProgress(pct, 'Leyendo páginas en tu dispositivo...', `${current} de ${total}`);
+        });
+
+        // Quality gate: bloquear/avisar si las fotos están terribles
+        const gateResult = await this.runQualityGate();
+        if (gateResult === 'cancel') {
+          App.go('scanner');
+          return;
+        }
+        // Si fue 'retake', el usuario reemplazó páginas malas; ya están re-procesadas
+        // Si fue 'continue', seguimos con lo que hay
+
+        // Pase 2: Claude fallback para páginas que aún no superan el umbral
+        setProgress(50, 'Mejorando páginas con IA cuando es necesario...', '');
+        App.state.fullText = await OCR.claudeFallbackPass((current, total, meta, fallbackCount, figuresCount) => {
+          const pct = 50 + Math.round((current / total) * 15);
           const aiLabel = fallbackCount > 0 ? ` · ${fallbackCount} con IA` : '';
           const figLabel = figuresCount > 0 ? ` · ${figuresCount} figura${figuresCount !== 1 ? 's' : ''}` : '';
-          setProgress(pct, 'Leyendo páginas en tu dispositivo...', `${current} de ${total}${aiLabel}${figLabel}`);
+          setProgress(pct, 'Procesando páginas...', `${current} de ${total}${aiLabel}${figLabel}`);
         });
 
         // 2.5 Post-clean condicional: si el OCR tuvo mucha basura, llamar Claude

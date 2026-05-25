@@ -52,69 +52,114 @@ const OCR = {
     return totalScore / this.pageMetadata.length;
   },
 
-  // Procesar páginas con Tesseract + auto-fallback a Claude si la calidad es baja
-  async processAllPages(onProgress) {
+  // Pase 1: Tesseract de TODAS las páginas (local, gratis, rápido)
+  // Llena pageMetadata con datos preliminares (source='tesseract'). No llama Claude.
+  async tesseractPass(onProgress) {
     const pages = App.state.bookPages;
     this.pageMetadata = new Array(pages.length).fill(null);
-    let completed = 0;
-    let fallbackCount = 0;
-    let figuresCount = 0;
-
-    // Pre-pase: Tesseract de TODAS las páginas primero, para tener context next disponible
-    const tessResults = new Array(pages.length);
     for (let i = 0; i < pages.length; i++) {
-      tessResults[i] = await TesseractOCR.recognize(pages[i]);
-    }
-
-    // Segundo pase: para cada página decidir si necesita Claude (con context)
-    for (let i = 0; i < pages.length; i++) {
-      const tess = tessResults[i];
-      let meta = {
+      const tess = await TesseractOCR.recognize(pages[i]);
+      this.pageMetadata[i] = {
         text: tess.text,
         confidence: tess.confidence,
         source: 'tesseract',
         needsReview: false,
-        figures: 0
+        figures: 0,
+        score: this._scorePage(tess.text, tess.confidence)
       };
+      if (onProgress) onProgress(i + 1, pages.length);
+    }
+  },
 
-      const lowQuality = tess.confidence < this.AUTO_FALLBACK_CONFIDENCE
-                      || tess.text.length < this.AUTO_FALLBACK_MIN_CHARS
-                      || this.isLikelyGarbage(tess.text);
+  // Reprocesar una página solo con Tesseract (después de un re-take del usuario)
+  async tesseractReprocessPage(index) {
+    const image = App.state.bookPages[index];
+    if (!image) return null;
+    const tess = await TesseractOCR.recognize(image);
+    this.pageMetadata[index] = {
+      text: tess.text,
+      confidence: tess.confidence,
+      source: 'tesseract',
+      needsReview: false,
+      figures: 0,
+      score: this._scorePage(tess.text, tess.confidence)
+    };
+    return this.pageMetadata[index];
+  },
+
+  // Pase 2: para páginas con baja calidad, escalar a Claude vision (con context)
+  async claudeFallbackPass(onProgress) {
+    const pages = App.state.bookPages;
+    let fallbackCount = 0;
+    let figuresCount = 0;
+
+    for (let i = 0; i < pages.length; i++) {
+      const meta = this.pageMetadata[i];
+      if (!meta) continue;
+
+      // Si ya viene de Claude (re-procesado manual), skip
+      if (meta.source === 'claude') {
+        fallbackCount++;
+        figuresCount += meta.figures || 0;
+        if (onProgress) onProgress(i + 1, pages.length, meta, fallbackCount, figuresCount);
+        continue;
+      }
+
+      const lowQuality = meta.confidence < this.AUTO_FALLBACK_CONFIDENCE
+                      || meta.text.length < this.AUTO_FALLBACK_MIN_CHARS
+                      || this.isLikelyGarbage(meta.text);
 
       if (lowQuality) {
         try {
-          // Construir contexto desde texto de Tesseract de páginas vecinas
-          const prev = i > 0 ? (tessResults[i - 1]?.text || '') : '';
-          const next = i < pages.length - 1 ? (tessResults[i + 1]?.text || '') : '';
-          const ctx = { prev, next };
-
-          const ai = await API.ocr(pages[i], ctx);
-          if (ai.text && ai.text.length > tess.text.length) {
+          const prev = i > 0 ? (this.pageMetadata[i - 1]?.text || '') : '';
+          const next = i < pages.length - 1 ? (this.pageMetadata[i + 1]?.text || '') : '';
+          const ai = await API.ocr(pages[i], { prev, next });
+          if (ai.text && ai.text.length > meta.text.length) {
             const figs = (ai.text.match(this.FIGURE_REGEX) || []).length;
-            meta = {
+            this.pageMetadata[i] = {
               text: ai.text,
               confidence: 99,
               source: 'claude',
               needsReview: false,
-              figures: figs
+              figures: figs,
+              score: 0.99
             };
             fallbackCount++;
             figuresCount += figs;
           } else {
-            meta.needsReview = true;
+            this.pageMetadata[i].needsReview = true;
           }
         } catch (err) {
           console.warn(`Auto-fallback Claude falló para página ${i + 1}:`, err.message);
-          meta.needsReview = true;
+          this.pageMetadata[i].needsReview = true;
         }
       }
-
-      this.pageMetadata[i] = meta;
-      completed++;
-      if (onProgress) onProgress(completed, pages.length, meta, fallbackCount, figuresCount);
+      if (onProgress) onProgress(i + 1, pages.length, this.pageMetadata[i], fallbackCount, figuresCount);
     }
 
-    return this.pageMetadata.map(m => m.text).join('\n\n');
+    return this.pageMetadata.map(m => m?.text || '').join('\n\n');
+  },
+
+  // Pipeline completo (wrapper): tesseract + claude fallback. Devuelve fullText.
+  async processAllPages(onProgress) {
+    await this.tesseractPass();
+    return this.claudeFallbackPass(onProgress);
+  },
+
+  // Score 0-1 individual de una página (basado en confianza Tesseract + garbage check)
+  _scorePage(text, confidence) {
+    let score = Math.min(1, (confidence || 0) / 100);
+    if (this.isLikelyGarbage(text)) score *= 0.5;
+    if (!text || text.length < 30) score *= 0.6;
+    return score;
+  },
+
+  // Páginas con score bajo (para mostrar en quality gate)
+  getBadPages(threshold) {
+    const t = threshold !== undefined ? threshold : 0.55;
+    return this.pageMetadata
+      .map((m, i) => ({ index: i, score: m?.score ?? 0, text: m?.text || '' }))
+      .filter(p => p.score < t);
   },
 
   // Cuántas páginas usaron Claude (auto-fallback o manual)

@@ -13,6 +13,20 @@
   </div>
 </div>
 
+<!-- Modal: quality gate cuando demasiadas páginas están mal -->
+<div class="quality-gate-modal" id="quality-gate-modal">
+  <div class="quality-gate-card">
+    <h2 id="quality-gate-title">Algunas páginas se ven mal</h2>
+    <p id="quality-gate-subtitle">Te recomendamos re-tomar estas páginas.</p>
+    <div class="quality-gate-body" id="quality-gate-body"></div>
+    <div class="quality-gate-actions">
+      <button class="btn btn-ghost" onclick="Processor.qualityGateCancel()">Reescanear todo</button>
+      <button class="btn btn-primary" onclick="Processor.qualityGateContinue()">Continuar de todos modos</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="quality-retake-input" accept="image/*" capture="environment" style="display:none">
+
 <div class="processing">
   <!-- Info del libro -->
   <div class="processing-header">
