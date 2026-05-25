@@ -121,30 +121,92 @@ app.post('/api/detect-cover', async (req, res) => {
   }
 });
 
-// Detectar capítulos
+// Detectar capítulos + cleanup (con awareness de página si se envía `pages`)
 app.post('/api/detect-chapters', async (req, res) => {
   try {
-    const { text, indexText } = req.body;
-    if (!text) return res.status(400).json({ error: 'Falta el texto' });
+    const { text, indexText, pages } = req.body;
+    if (!text && !pages) return res.status(400).json({ error: 'Falta el texto o las páginas' });
 
-    const prompt = indexText
-      ? `Aquí está el índice del libro:\n\n${indexText}\n\nY aquí el texto completo:\n\n${text}\n\nIdentifica los capítulos y sus límites en el texto. Responde SOLO con JSON válido: [{"name": "Capítulo 1: Nombre", "startChar": 0, "endChar": 1500}]`
-      : `Analiza este texto de libro e identifica los límites de cada capítulo. Busca patrones como "Capítulo 1", "CAPÍTULO", números romanos, o cambios temáticos claros. Si no encuentras capítulos, devuelve el texto completo como un solo capítulo llamado "Libro Completo". Responde SOLO con JSON válido: [{"name": "Capítulo 1: Nombre", "startChar": 0, "endChar": 1500}]\n\nTexto:\n\n${text}`;
+    // Construir representación con números de página si están disponibles
+    let bookRepresentation;
+    let hasPageInfo = false;
+    if (Array.isArray(pages) && pages.length > 0) {
+      hasPageInfo = true;
+      bookRepresentation = pages.map(p => `=== PÁGINA ${p.num} ===\n${p.text || ''}`).join('\n\n');
+    } else {
+      bookRepresentation = text || '';
+    }
+
+    const indexBlock = indexText
+      ? `\nÍndice del libro (orientativo):\n${indexText}\n`
+      : '';
+
+    const pageInstructions = hasPageInfo
+      ? `Cada página viene marcada con "=== PÁGINA N ===". Identifica los capítulos por su número de página de inicio y fin.`
+      : `No tienes números de página. Identifica los capítulos por marcadores textuales.`;
+
+    const prompt = `Eres un asistente que estructura libros escaneados (OCR). Tu trabajo:
+
+1. **Detectar capítulos**: ${pageInstructions} Busca patrones como "Capítulo 1", "CAPÍTULO I", "Capítulo Uno", números romanos, o títulos en mayúsculas que marcan inicio.
+2. **Identificar basura del OCR**: las imágenes escaneadas a veces meten sombras, fragmentos de tablas, números de página al pie, headers repetidos, o caracteres de gráficos. Genera patrones regex (sin flags) para limpiarlos.
+3. **Sin reescribir**: NO modifiques el contenido. Solo dame metadata (rangos de páginas y patrones de regex).
+${indexBlock}
+Responde SOLO con JSON válido (sin texto extra) en este formato exacto:
+
+\`\`\`
+{
+  "chapters": [
+    { "name": "Capítulo 1: Título corto", "startPage": 1, "endPage": 14 }
+  ],
+  "junkPatterns": [
+    "^\\\\s*\\\\d+\\\\s*$",
+    "^[│┌┘─•]+$",
+    "Página \\\\d+ de \\\\d+"
+  ]
+}
+\`\`\`
+
+Reglas estrictas:
+- Si no hay números de página, usa "startChar" y "endChar" en lugar de startPage/endPage.
+- Los patrones regex deben ser conservadores — NUNCA limpies palabras reales del libro.
+- Si no encuentras capítulos claros, devuelve uno solo llamado "Libro Completo".
+- "name" debe ser corto (max 60 chars), sin punto final.
+
+Contenido del libro:
+
+${bookRepresentation}`;
 
     const response = await anthropic.messages.create({
       model: MODEL,
-      max_tokens: 4096,
+      max_tokens: 2048,
       messages: [{ role: 'user', content: prompt }]
     });
 
-    const raw = response.content[0]?.text || '[]';
+    const raw = response.content[0]?.text || '{}';
     try {
-      const match = raw.match(/\[[\s\S]*\]/);
-      const chapters = JSON.parse(match ? match[0] : raw);
-      res.json({ chapters });
+      // Aceptar tanto objeto como array (legacy)
+      const objectMatch = raw.match(/\{[\s\S]*\}/);
+      const arrayMatch = raw.match(/\[[\s\S]*\]/);
+
+      let parsed;
+      if (objectMatch) {
+        parsed = JSON.parse(objectMatch[0]);
+      } else if (arrayMatch) {
+        parsed = { chapters: JSON.parse(arrayMatch[0]), junkPatterns: [] };
+      } else {
+        throw new Error('No JSON found');
+      }
+
+      // Normalizar respuesta
+      const chapters = Array.isArray(parsed.chapters) ? parsed.chapters : [];
+      const junkPatterns = Array.isArray(parsed.junkPatterns) ? parsed.junkPatterns : [];
+
+      res.json({ chapters, junkPatterns });
     } catch {
-      // Fallback: todo el texto como un capítulo
-      res.json({ chapters: [{ name: 'Libro Completo', startChar: 0, endChar: text.length }] });
+      res.json({
+        chapters: [{ name: 'Libro Completo', startChar: 0, endChar: (text || bookRepresentation).length }],
+        junkPatterns: []
+      });
     }
   } catch (err) {
     console.error('Error chapters:', err.message);

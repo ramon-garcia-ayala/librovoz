@@ -65,14 +65,36 @@ const Processor = {
         });
       }
 
-      // 3. Detectar capítulos (Claude, text-only, barato)
-      setProgress(80, 'Detectando capítulos...', '');
-      const rawChapters = await Chapters.detect(App.state.fullText, App.state.indexText);
-      App.state.chapters = Chapters.splitText(App.state.fullText, rawChapters);
+      // 3. Detectar capítulos + cleanup (con awareness de página)
+      setProgress(80, 'Estructurando capítulos...', 'Claude revisa y limpia el texto');
+
+      // Construir pages[] desde OCR.pageMetadata (si vino de scan, no de PDF nativo)
+      let pages = null;
+      if (Array.isArray(OCR.pageMetadata) && OCR.pageMetadata.length > 0) {
+        pages = OCR.pageMetadata.map((m, i) => ({
+          num: i + 1,
+          text: (m && m.text) ? m.text : ''
+        }));
+      }
+
+      const detection = await Chapters.detect(App.state.fullText, App.state.indexText, pages);
+      App.state.chapters = Chapters.splitText(
+        App.state.fullText,
+        detection.chapters,
+        pages,
+        detection.junkPatterns
+      );
+      App.state._lastJunkPatterns = detection.junkPatterns || [];
 
       // 4. Mostrar páginas que necesitan revisión + modo
       const reviewable = OCR.getReviewablePages();
-      setProgress(100, 'Listo', `${App.state.chapters.length} capítulo(s)`);
+      const cleanupNote = (detection.junkPatterns || []).length > 0
+        ? ` · limpieza aplicada`
+        : '';
+      setProgress(100, 'Listo', `${App.state.chapters.length} capítulo(s)${cleanupNote}`);
+
+      // Render preview de capítulos detectados
+      this.renderChaptersPreview(App.state.chapters);
 
       if (privacyEl) privacyEl.style.display = 'none';
       if (this._microcopyTimer) {
@@ -109,6 +131,41 @@ const Processor = {
       setProgress(0, 'Error al procesar', err.message);
       App.showToast('Error procesando el libro: ' + err.message, 'error');
     }
+  },
+
+  // Render preview de capítulos detectados (estructura propuesta por IA)
+  renderChaptersPreview(chapters) {
+    const container = document.getElementById('processing-chapters-preview');
+    if (!container || !chapters || chapters.length === 0) return;
+
+    container.innerHTML = `
+      <div class="chapters-preview-header">
+        <h3>${chapters.length} capítulo${chapters.length !== 1 ? 's' : ''} detectado${chapters.length !== 1 ? 's' : ''}</h3>
+        <p>Esto es lo que la IA encontró. Si algo se ve raro, puedes seguir y editarlo después.</p>
+      </div>
+      <ol class="chapters-preview-list">
+        ${chapters.slice(0, 30).map((ch, i) => {
+          const preview = (ch.text || '').slice(0, 80).replace(/\s+/g, ' ').trim();
+          const words = (ch.text || '').split(/\s+/).length;
+          return `
+            <li class="chapters-preview-item">
+              <span class="chapters-preview-num">${i + 1}</span>
+              <div class="chapters-preview-info">
+                <div class="chapters-preview-title">${this.escapeHtml(ch.title || 'Sin nombre')}</div>
+                <div class="chapters-preview-meta">${words} palabras · ${preview}…</div>
+              </div>
+            </li>
+          `;
+        }).join('')}
+        ${chapters.length > 30 ? `<li class="chapters-preview-item chapters-preview-more">+ ${chapters.length - 30} más</li>` : ''}
+      </ol>
+    `;
+    container.style.display = 'block';
+  },
+
+  escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   },
 
   // Render lista de páginas que Tesseract no leyó bien

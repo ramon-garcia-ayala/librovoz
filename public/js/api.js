@@ -39,8 +39,8 @@ const API = {
     return this._fetch('/detect-cover', { image: imageBase64 });
   },
 
-  async detectChapters(text, indexText) {
-    return this._fetch('/detect-chapters', { text, indexText });
+  async detectChapters(text, indexText, pages) {
+    return this._fetch('/detect-chapters', { text, indexText, pages });
   },
 
   async summarize(text, chapterName) {
