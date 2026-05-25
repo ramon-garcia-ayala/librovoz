@@ -1,4 +1,4 @@
-const CACHE_NAME = 'librovoz-v4';
+const CACHE_NAME = 'librovoz-v5';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -12,6 +12,7 @@ const STATIC_ASSETS = [
   '/css/scanner.css',
   '/css/player.css',
   '/css/library.css',
+  '/css/paywall.css',
   '/js/app.js',
   '/js/api.js',
   '/js/scanner.js',
@@ -24,7 +25,11 @@ const STATIC_ASSETS = [
   '/js/utils.js',
   '/js/db.js',
   '/js/library.js',
-  '/pages/library.html'
+  '/js/limits.js',
+  '/js/quota.js',
+  '/js/paywall.js',
+  '/pages/library.html',
+  '/pages/paywall.html'
 ];
 
 self.addEventListener('install', e => {

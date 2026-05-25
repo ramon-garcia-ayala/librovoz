@@ -26,7 +26,8 @@ const App = {
     scanner: { partial: '/pages/scanner.html', init: () => Scanner.init() },
     processing: { partial: '/pages/processing.html', init: () => Processor.init() },
     voices: { partial: '/pages/voices.html', init: () => Voices.init() },
-    player: { partial: '/pages/player.html', init: () => Player.init() }
+    player: { partial: '/pages/player.html', init: () => Player.init() },
+    paywall: { partial: '/pages/paywall.html', init: () => Paywall.init() }
   },
 
   async init() {

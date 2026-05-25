@@ -1,0 +1,169 @@
+/* ==========================================================================
+   LibroVoz — Paywall
+   ========================================================================== */
+
+.paywall {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--color-bg);
+  padding: var(--space-6);
+  padding-top: max(var(--space-8), env(safe-area-inset-top));
+  padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  overflow-y: auto;
+  overflow-x: hidden;
+  align-items: center;
+}
+
+/* ── Hero ─────────────────────────────────────────────────────────────── */
+.paywall-hero {
+  text-align: center;
+  margin-bottom: var(--space-8);
+  max-width: 420px;
+}
+
+.paywall-badge {
+  margin-bottom: var(--space-4);
+  display: flex;
+  justify-content: center;
+}
+
+.paywall-title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  letter-spacing: -0.02em;
+  line-height: var(--line-height-tight);
+  margin-bottom: var(--space-2);
+}
+
+.paywall-subtitle {
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-relaxed);
+}
+
+/* ── Card del paquete ─────────────────────────────────────────────────── */
+.paywall-package {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  background: var(--color-bg-elevated);
+  border: 2px solid var(--color-accent);
+  border-radius: var(--radius-xl);
+  padding: var(--space-7) var(--space-6) var(--space-6);
+  box-shadow: 0 10px 40px rgba(0, 122, 255, 0.12);
+  margin-bottom: var(--space-6);
+}
+
+.paywall-package-badge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-accent);
+  color: #FFFFFF;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.paywall-package-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  text-align: center;
+  margin-bottom: var(--space-2);
+}
+
+.paywall-package-price {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.paywall-price-amount {
+  font-size: 48px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-accent);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.paywall-price-currency {
+  font-size: var(--font-size-base);
+  color: var(--color-text-tertiary);
+  font-weight: var(--font-weight-medium);
+}
+
+.paywall-package-detail {
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  margin-bottom: var(--space-6);
+}
+
+/* ── Lista de beneficios ──────────────────────────────────────────────── */
+.paywall-features {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.paywall-features li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  line-height: var(--line-height-relaxed);
+}
+
+.paywall-features li svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* ── Acciones ─────────────────────────────────────────────────────────── */
+.paywall-actions {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.paywall-cta {
+  width: 100%;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  min-height: 52px;
+}
+
+.paywall-back {
+  width: 100%;
+}
+
+.paywall-note {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  text-align: center;
+  max-width: 420px;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────── */
+@media (min-width: 768px) {
+  .paywall {
+    justify-content: center;
+  }
+}

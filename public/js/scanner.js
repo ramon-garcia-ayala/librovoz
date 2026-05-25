@@ -7,6 +7,13 @@ const Scanner = {
   cameraAvailable: false,
 
   async init() {
+    // Chequeo de cuota: si llegó al límite gratis, redirigir a paywall
+    const quota = await Quota.getStatus();
+    if (quota.atLimit) {
+      App.go('paywall');
+      return;
+    }
+
     this.phase = 'cover';
     this.video = document.getElementById('camera-feed');
     this.capturing = false;
@@ -151,18 +158,59 @@ const Scanner = {
         break;
 
       case 'index':
+        if (App.state.indexPages.length >= LIMITS.MAX_INDEX_PAGES) {
+          App.showToast(`Máximo ${LIMITS.MAX_INDEX_PAGES} páginas de índice. Toca Siguiente para continuar.`, 'error');
+          return;
+        }
         App.state.indexPages.push(base64);
         this.addThumbnailFast(base64);
-        this.setPhaseCount(`${App.state.indexPages.length} foto(s)`);
+        this.updatePhaseCounter();
         this.showNextButton();
         break;
 
       case 'pages':
+        if (App.state.bookPages.length >= LIMITS.MAX_CONTENT_PAGES) {
+          App.showToast(`Límite alcanzado: ${LIMITS.MAX_CONTENT_PAGES} páginas. Toca Siguiente para procesar.`, 'error');
+          return;
+        }
         App.state.bookPages.push(base64);
         this.addThumbnailFast(base64);
-        this.setPhaseCount(`${App.state.bookPages.length} foto(s)`);
+        this.updatePhaseCounter();
         this.showNextButton();
         break;
+    }
+  },
+
+  // ── Contador con estado warning/error según % usado ────────────────
+  updatePhaseCounter() {
+    const el = document.getElementById('scanner-phase-count');
+    const captureBtn = document.getElementById('btn-capture');
+    if (!el) return;
+
+    let current = 0;
+    let max = 0;
+
+    if (this.phase === 'index') {
+      current = App.state.indexPages.length;
+      max = LIMITS.MAX_INDEX_PAGES;
+    } else if (this.phase === 'pages') {
+      current = App.state.bookPages.length;
+      max = LIMITS.MAX_CONTENT_PAGES;
+    }
+
+    el.textContent = `${current} / ${max}`;
+    el.style.display = 'inline';
+
+    el.classList.remove('warning', 'danger');
+    const pct = current / max;
+    if (pct >= 1) {
+      el.classList.add('danger');
+      if (captureBtn) captureBtn.classList.add('disabled');
+    } else if (pct >= 0.9) {
+      el.classList.add('warning');
+      if (captureBtn) captureBtn.classList.remove('disabled');
+    } else {
+      if (captureBtn) captureBtn.classList.remove('disabled');
     }
   },
 
@@ -235,8 +283,9 @@ const Scanner = {
       case 'index':
         if (stepCover) stepCover.classList.add('done');
         if (stepIndex) stepIndex.classList.add('active');
-        this.setPhaseTitle('Fotografía el índice');
+        this.setPhaseTitle('Fotografía el índice (opcional)');
         if (guideLabel) guideLabel.textContent = 'Encuadra el índice';
+        this.updatePhaseCounter();
         // Mostrar next inmediatamente (índice es opcional)
         this.showNextButton();
         break;
@@ -246,6 +295,7 @@ const Scanner = {
         if (stepPages) stepPages.classList.add('active');
         this.setPhaseTitle('Fotografía las páginas');
         if (guideLabel) guideLabel.textContent = 'Encuadra la página';
+        this.updatePhaseCounter();
         break;
     }
   },

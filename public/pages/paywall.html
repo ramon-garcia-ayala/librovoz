@@ -1,0 +1,54 @@
+<div class="paywall">
+  <div class="paywall-hero">
+    <div class="paywall-badge">
+      <svg viewBox="0 0 64 64" width="64" height="64" fill="none">
+        <circle cx="32" cy="32" r="30" fill="#007AFF" opacity="0.12"/>
+        <path d="M20 34l8 8 16-16" stroke="#007AFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>
+    </div>
+    <h1 class="paywall-title">Has procesado tus libros gratis</h1>
+    <p class="paywall-subtitle">Compra créditos para seguir escaneando libros</p>
+  </div>
+
+  <div class="paywall-package">
+    <div class="paywall-package-badge">Mejor opción</div>
+    <h2 class="paywall-package-title" id="paywall-package-title">10 libros</h2>
+    <div class="paywall-package-price">
+      <span class="paywall-price-amount" id="paywall-price-amount">$99</span>
+      <span class="paywall-price-currency">MXN</span>
+    </div>
+    <p class="paywall-package-detail" id="paywall-package-detail">Solo $9.90 por libro</p>
+
+    <ul class="paywall-features">
+      <li>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#34C759" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>10 libros completos hasta 200 páginas cada uno</span>
+      </li>
+      <li>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#34C759" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>Sin suscripción — paga solo cuando uses</span>
+      </li>
+      <li>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#34C759" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>Tus libros se guardan en tu dispositivo</span>
+      </li>
+      <li>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#34C759" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>Acceso desde cualquier dispositivo con tu cuenta</span>
+      </li>
+    </ul>
+  </div>
+
+  <div class="paywall-actions">
+    <button class="btn btn-primary paywall-cta" onclick="Paywall.buyPackage()">
+      Comprar 10 libros
+    </button>
+    <button class="btn btn-ghost paywall-back" onclick="App.go('library')">
+      Volver a mi biblioteca
+    </button>
+  </div>
+
+  <p class="paywall-note">
+    Pago seguro vía Stripe. Sin renovación automática.
+  </p>
+</div>

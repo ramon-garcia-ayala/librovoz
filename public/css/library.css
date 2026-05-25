@@ -28,6 +28,55 @@
   letter-spacing: -0.02em;
 }
 
+/* ── Badge de cuota ───────────────────────────────────────────────────── */
+.library-quota {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: rgba(0, 122, 255, 0.08);
+  border: 1px solid rgba(0, 122, 255, 0.18);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.library-quota.warning {
+  background: rgba(255, 149, 0, 0.10);
+  border-color: rgba(255, 149, 0, 0.22);
+  color: #B36900;
+}
+
+.library-quota.danger {
+  background: rgba(255, 59, 48, 0.10);
+  border-color: rgba(255, 59, 48, 0.22);
+  color: #B82828;
+}
+
+.library-quota-text {
+  flex: 1;
+  font-weight: var(--font-weight-medium);
+}
+
+.library-quota-cta {
+  background: var(--color-accent);
+  color: #FFFFFF;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  font-family: var(--font-family);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.library-quota-cta:active {
+  transform: scale(0.96);
+}
+
 /* ── Grid de libros ───────────────────────────────────────────────────── */
 .library-grid {
   display: flex;

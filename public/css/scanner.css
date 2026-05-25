@@ -312,6 +312,28 @@
   background: rgba(0, 122, 255, 0.15);
   padding: 2px 10px;
   border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.scanner-phase-count.warning {
+  color: #FF9500;
+  background: rgba(255, 149, 0, 0.18);
+}
+
+.scanner-phase-count.danger {
+  color: #FF3B30;
+  background: rgba(255, 59, 48, 0.22);
+  animation: pulse-danger 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse-danger {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.btn-capture.disabled {
+  opacity: 0.4;
+  pointer-events: none;
 }
 
 /* ── Controles de captura ─────────────────────────────────────────────── */

@@ -5,6 +5,8 @@ const Library = {
     const grid = document.getElementById('library-grid');
     const empty = document.getElementById('library-empty');
 
+    this.renderQuotaBadge(books.length);
+
     if (books.length === 0) {
       if (grid) grid.style.display = 'none';
       if (empty) empty.style.display = 'flex';
@@ -15,6 +17,30 @@ const Library = {
     if (empty) empty.style.display = 'none';
 
     this.renderBooks(books);
+  },
+
+  renderQuotaBadge(used) {
+    const badge = document.getElementById('library-quota');
+    if (!badge) return;
+
+    const limit = LIMITS.FREE_TIER_BOOKS;
+    const atLimit = used >= limit;
+
+    badge.classList.remove('warning', 'danger');
+
+    if (atLimit) {
+      badge.classList.add('danger');
+      badge.innerHTML = `
+        <span class="library-quota-text">Has usado tus ${limit} libros gratis</span>
+        <button class="library-quota-cta" onclick="App.go('paywall')">Comprar más</button>
+      `;
+    } else if (used >= limit - 1) {
+      badge.classList.add('warning');
+      badge.innerHTML = `<span class="library-quota-text">Te queda 1 libro gratis</span>`;
+    } else {
+      badge.innerHTML = `<span class="library-quota-text">Has usado ${used} de ${limit} libros gratis</span>`;
+    }
+    badge.style.display = 'flex';
   },
 
   renderBooks(books) {
