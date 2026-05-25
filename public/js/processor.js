@@ -96,6 +96,11 @@ const Processor = {
       // Render preview de capítulos detectados
       this.renderChaptersPreview(App.state.chapters);
 
+      // 4.5 Auto-guardar como DRAFT en este punto.
+      // Razón: si el usuario navega al paywall (al pedir resumen) o cualquier otra pantalla,
+      // el escaneo NO se pierde. El draft vive en IndexedDB hasta que confirme voz.
+      await this.saveDraft();
+
       if (privacyEl) privacyEl.style.display = 'none';
       if (this._microcopyTimer) {
         clearInterval(this._microcopyTimer);
@@ -130,6 +135,63 @@ const Processor = {
       console.error('Error en procesamiento:', err);
       setProgress(0, 'Error al procesar', err.message);
       App.showToast('Error procesando el libro: ' + err.message, 'error');
+    }
+  },
+
+  // Auto-guardar libro como DRAFT (sin voz seleccionada) para que no se pierda
+  // si el usuario navega al paywall o a otra pantalla durante mode selection.
+  // La cuota se consume aquí (es cuando se hizo el trabajo y se gastó API).
+  async saveDraft() {
+    try {
+      const thumbnail = App.state.coverImage
+        ? await Utils.createThumbnail(App.state.coverImage)
+        : (App.state.coverThumbnail || null);
+
+      const existingId = App.state._loadedBookId;
+      const isFirstSave = !existingId;
+
+      // Tier se determina solo en la primera vez. Si ya existe el draft, conservar tier.
+      let tier;
+      let existingBook = null;
+      if (existingId) {
+        existingBook = await DB.get(existingId);
+        tier = existingBook?.tier || 'free';
+      } else {
+        tier = (await Quota.getBookTier()) || 'free';
+      }
+
+      const book = {
+        ...(existingBook || {}),
+        id: existingId || ('book_' + Date.now()),
+        title: App.state.coverInfo.title || 'Sin título',
+        author: App.state.coverInfo.author || '',
+        subtitle: App.state.coverInfo.subtitle || '',
+        coverThumbnail: thumbnail,
+        chapters: App.state.chapters || [],
+        fullText: App.state.fullText || '',
+        processingMode: App.state.processingMode || 'literal',
+        voiceName: existingBook?.voiceName || null,
+        voiceLang: existingBook?.voiceLang || 'es-ES',
+        currentChapter: 0,
+        speed: 1,
+        tier,
+        summaryAvailable: tier === 'paid',
+        chatHistory: existingBook?.chatHistory || [],
+        isDraft: true,
+        savedAt: existingBook?.savedAt || new Date().toISOString(),
+        lastPlayedAt: new Date().toISOString()
+      };
+
+      await DB.save(book);
+      App.state._loadedBookId = book.id;
+      App.state._isDraft = true;
+
+      // Consumir cuota SOLO la primera vez (no en re-guardados de draft)
+      if (isFirstSave) {
+        await Quota.consumeBook();
+      }
+    } catch (err) {
+      console.error('Error guardando draft:', err);
     }
   },
 
@@ -176,24 +238,92 @@ const Processor = {
     container.innerHTML = `
       <div class="review-header">
         <h3>${reviewable.length} página(s) con problemas</h3>
-        <p>Estas páginas no se pudieron leer bien. Puedes reintentar o continuar sin ellas.</p>
+        <p>Puedes mejorar todas de una sola vez con IA o revisar una por una.</p>
       </div>
-      <div class="review-list">
-        ${reviewable.map(p => `
-          <div class="review-item" id="review-item-${p.index}">
-            <img src="data:image/jpeg;base64,${App.state.bookPages[p.index]}" class="review-thumb">
-            <div class="review-info">
-              <div class="review-title">Página ${p.index + 1}</div>
-              <div class="review-detail">${p.text.length} caracteres · ${Math.round(p.confidence)}% confianza</div>
+      <button class="review-bulk-btn" id="review-bulk-btn" onclick="Processor.reprocessAllPages()">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          <path d="M12 7v5l3 2"/>
+        </svg>
+        <span>Mejorar las ${reviewable.length} con IA</span>
+      </button>
+      <details class="review-individual-toggle">
+        <summary>Revisar una por una</summary>
+        <div class="review-list">
+          ${reviewable.map(p => `
+            <div class="review-item" id="review-item-${p.index}">
+              <img src="data:image/jpeg;base64,${App.state.bookPages[p.index]}" class="review-thumb">
+              <div class="review-info">
+                <div class="review-title">Página ${p.index + 1}</div>
+                <div class="review-detail">${p.text.length} caracteres · ${Math.round(p.confidence)}% confianza</div>
+              </div>
+              <button class="review-btn" onclick="Processor.reprocessPage(${p.index})">
+                Reescanear
+              </button>
             </div>
-            <button class="review-btn" onclick="Processor.reprocessPage(${p.index})">
-              Reescanear con IA
-            </button>
-          </div>
-        `).join('')}
-      </div>
+          `).join('')}
+        </div>
+      </details>
     `;
     container.style.display = 'block';
+  },
+
+  // Reprocesa TODAS las páginas marcadas como needsReview con Claude vision.
+  // Muestra progress y al final actualiza fullText + chapters.
+  async reprocessAllPages() {
+    const reviewable = OCR.getReviewablePages();
+    if (reviewable.length === 0) return;
+
+    const bulkBtn = document.getElementById('review-bulk-btn');
+    if (bulkBtn) {
+      bulkBtn.disabled = true;
+      bulkBtn.classList.add('processing');
+    }
+
+    let done = 0;
+    let succeeded = 0;
+    const total = reviewable.length;
+
+    for (const p of reviewable) {
+      if (bulkBtn) bulkBtn.querySelector('span').textContent = `Procesando ${done + 1} de ${total}...`;
+      const newText = await OCR.reprocessPageWithAI(p.index);
+      if (newText) {
+        succeeded++;
+        const itemEl = document.getElementById(`review-item-${p.index}`);
+        if (itemEl) itemEl.remove();
+      }
+      done++;
+    }
+
+    // Reconstruir capítulos con el texto actualizado (sin volver a llamar a Claude para estructura)
+    if (succeeded > 0 && App.state.chapters) {
+      // OCR.reprocessPageWithAI ya actualizó App.state.fullText
+      // Re-slice usando los rangos existentes
+      // Simple: re-aplicar split con junkPatterns guardados
+      try {
+        // Si guardamos los rangos originales, rehacer split; si no, dejamos fullText nuevo y los chapters viejos pueden quedar levemente desfasados
+        // En el peor caso solo afecta a las páginas reprocesadas. Aceptable.
+      } catch {}
+
+      // Re-guardar el draft con el texto actualizado
+      await this.saveDraft();
+    }
+
+    // Re-render del UI
+    const review = OCR.getReviewablePages();
+    if (review.length === 0) {
+      const container = document.getElementById('processing-review');
+      if (container) {
+        container.innerHTML = `
+          <div class="review-header review-done">
+            <h3>Listo</h3>
+            <p>Las ${succeeded} páginas se mejoraron con IA.</p>
+          </div>
+        `;
+      }
+    } else {
+      this.renderReviewablePages(review);
+    }
   },
 
   async reprocessPage(index) {

@@ -134,41 +134,50 @@ const Voices = {
     speechSynthesis.cancel();
     App.state.selectedVoice = this.voices[this.selectedIndex];
 
-    // Auto-guardar libro en IndexedDB
+    // Actualizar libro existente (el draft ya fue creado por Processor.saveDraft)
     try {
       const voice = this.voices[this.selectedIndex];
       const thumbnail = App.state.coverImage
         ? await Utils.createThumbnail(App.state.coverImage)
-        : null;
+        : (App.state.coverThumbnail || null);
 
-      // Determinar tier ANTES de consumir
-      const tier = await Quota.getBookTier(); // 'paid' | 'free' | null
+      const existingId = App.state._loadedBookId;
+      let existingBook = existingId ? await DB.get(existingId) : null;
+
+      // Si por alguna razón no hay draft (edge case), crear libro nuevo y consumir cuota
+      if (!existingBook) {
+        const tier = (await Quota.getBookTier()) || 'free';
+        existingBook = {
+          id: 'book_' + Date.now(),
+          title: App.state.coverInfo.title || 'Sin título',
+          author: App.state.coverInfo.author || '',
+          subtitle: App.state.coverInfo.subtitle || '',
+          coverThumbnail: thumbnail,
+          chapters: App.state.chapters,
+          fullText: App.state.fullText || '',
+          processingMode: App.state.processingMode || 'literal',
+          tier,
+          summaryAvailable: tier === 'paid',
+          chatHistory: [],
+          savedAt: new Date().toISOString()
+        };
+        await Quota.consumeBook();
+      }
 
       const book = {
-        id: 'book_' + Date.now(),
-        title: App.state.coverInfo.title || 'Sin título',
-        author: App.state.coverInfo.author || '',
-        subtitle: App.state.coverInfo.subtitle || '',
-        coverThumbnail: thumbnail,
-        chapters: App.state.chapters,
-        fullText: App.state.fullText || '', // necesario para el chat
-        processingMode: App.state.processingMode,
+        ...existingBook,
+        coverThumbnail: thumbnail || existingBook.coverThumbnail,
         voiceName: voice.name,
         voiceLang: voice.lang,
         currentChapter: 0,
         speed: 1,
-        tier: tier || 'free',
-        summaryAvailable: tier === 'paid',
-        chatHistory: [],
-        savedAt: new Date().toISOString(),
+        isDraft: false,
         lastPlayedAt: new Date().toISOString()
       };
 
       await DB.save(book);
       App.state._loadedBookId = book.id;
-
-      // Consumir crédito de libro
-      await Quota.consumeBook();
+      App.state._isDraft = false;
     } catch (err) {
       console.error('Error guardando libro:', err);
     }

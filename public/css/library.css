@@ -206,6 +206,15 @@
   color: var(--color-text-tertiary);
 }
 
+.library-book-meta-draft {
+  color: var(--color-accent);
+  font-weight: var(--font-weight-medium);
+}
+
+.library-book-draft {
+  border-left: 3px solid var(--color-accent);
+}
+
 /* Barra de progreso */
 .library-book-progress {
   height: 3px;

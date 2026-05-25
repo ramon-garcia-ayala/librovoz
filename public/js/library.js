@@ -54,9 +54,10 @@ const Library = {
       const chapters = book.chapters ? book.chapters.length : 0;
       const progress = book.currentChapter || 0;
       const pct = chapters > 0 ? Math.round((progress / chapters) * 100) : 0;
+      const isDraft = book.isDraft === true;
 
       return `
-        <div class="library-book" onclick="Library.open('${book.id}')">
+        <div class="library-book ${isDraft ? 'library-book-draft' : ''}" onclick="Library.open('${book.id}')">
           <div class="library-book-cover">
             ${book.coverThumbnail
               ? `<img src="${book.coverThumbnail}" alt="Portada">`
@@ -68,8 +69,11 @@ const Library = {
           <div class="library-book-info">
             <h3 class="library-book-title">${book.title || 'Sin título'}</h3>
             <p class="library-book-author">${book.author || ''}</p>
-            <p class="library-book-meta">${chapters} capítulo${chapters !== 1 ? 's' : ''}</p>
-            ${pct > 0 ? `
+            ${isDraft
+              ? `<p class="library-book-meta library-book-meta-draft">Sin terminar — toca para elegir voz</p>`
+              : `<p class="library-book-meta">${chapters} capítulo${chapters !== 1 ? 's' : ''}</p>`
+            }
+            ${!isDraft && pct > 0 ? `
               <div class="library-book-progress">
                 <div class="library-book-progress-fill" style="width:${pct}%"></div>
               </div>
@@ -158,10 +162,18 @@ const Library = {
     App.state.coverThumbnail = book.coverThumbnail || null;
     App.state.coverInfo = { title: book.title, author: book.author, subtitle: book.subtitle || '' };
     App.state.chapters = book.chapters;
+    App.state.fullText = book.fullText || '';
     App.state.processingMode = book.processingMode;
     App.state.currentChapter = book.currentChapter || 0;
     App.state._loadedBookId = book.id;
+    App.state._isDraft = book.isDraft === true;
     App.state._savedSpeed = book.speed || 1;
+
+    // Si es draft (sin voz seleccionada) → ir a voices para terminar
+    if (book.isDraft === true) {
+      App.go('voices');
+      return;
+    }
 
     // Re-resolver voz
     App.state.selectedVoice = await this.resolveVoice(book.voiceName, book.voiceLang);
