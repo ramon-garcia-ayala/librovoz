@@ -54,7 +54,26 @@
   border-radius: var(--radius-xl);
   padding: var(--space-7) var(--space-6) var(--space-6);
   box-shadow: 0 10px 40px rgba(0, 122, 255, 0.12);
-  margin-bottom: var(--space-6);
+  margin-bottom: var(--space-4);
+}
+
+.paywall-package-secondary {
+  border: 1px solid var(--color-border);
+  box-shadow: none;
+  padding: var(--space-5) var(--space-6);
+}
+
+.paywall-package-secondary .paywall-package-title {
+  font-size: var(--font-size-base);
+}
+
+.paywall-package-secondary .paywall-price-amount {
+  font-size: 32px;
+}
+
+.paywall-cta-secondary {
+  width: 100%;
+  margin-top: var(--space-4);
 }
 
 .paywall-package-badge {

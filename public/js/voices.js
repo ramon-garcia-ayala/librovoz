@@ -141,6 +141,9 @@ const Voices = {
         ? await Utils.createThumbnail(App.state.coverImage)
         : null;
 
+      // Determinar tier ANTES de consumir
+      const tier = await Quota.getBookTier(); // 'paid' | 'free' | null
+
       const book = {
         id: 'book_' + Date.now(),
         title: App.state.coverInfo.title || 'Sin título',
@@ -148,17 +151,24 @@ const Voices = {
         subtitle: App.state.coverInfo.subtitle || '',
         coverThumbnail: thumbnail,
         chapters: App.state.chapters,
+        fullText: App.state.fullText || '', // necesario para el chat
         processingMode: App.state.processingMode,
         voiceName: voice.name,
         voiceLang: voice.lang,
         currentChapter: 0,
         speed: 1,
+        tier: tier || 'free',
+        summaryAvailable: tier === 'paid',
+        chatHistory: [],
         savedAt: new Date().toISOString(),
         lastPlayedAt: new Date().toISOString()
       };
 
       await DB.save(book);
       App.state._loadedBookId = book.id;
+
+      // Consumir crédito de libro
+      await Quota.consumeBook();
     } catch (err) {
       console.error('Error guardando libro:', err);
     }

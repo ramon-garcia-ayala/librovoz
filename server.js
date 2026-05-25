@@ -30,13 +30,21 @@ app.get('/.well-known/assetlinks.json', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', '.well-known', 'assetlinks.json'));
 });
 
-// Rate limiting
+// Rate limiting general
 const limiter = rateLimit({
   windowMs: 60 * 1000,
   max: 100,
   message: { error: 'Demasiadas solicitudes. Espera un momento.' }
 });
 app.use('/api/', limiter);
+
+// Rate limit más estricto para chat (anti-abuse Fase 1)
+const chatLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max: 60,                  // 60 preguntas/hora por IP
+  message: { error: 'Demasiadas preguntas en una hora. Intenta más tarde.' }
+});
+app.use('/api/chat', chatLimiter);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -164,6 +172,66 @@ app.post('/api/summarize', async (req, res) => {
   } catch (err) {
     console.error('Error summarize:', err.message);
     res.status(500).json({ error: 'Error al resumir el capítulo' });
+  }
+});
+
+// Chat con un libro (usa prompt caching para reducir costo en preguntas subsecuentes)
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { bookText, bookTitle, messages, question } = req.body;
+    if (!bookText || !question) {
+      return res.status(400).json({ error: 'Faltan datos del libro o la pregunta' });
+    }
+
+    // Truncar contexto del libro por seguridad (80k chars ~= 20k tokens)
+    const truncated = String(bookText).slice(0, 80000);
+    const title = String(bookTitle || 'el libro').slice(0, 200);
+
+    const systemPrompt = `Eres un asistente experto que responde preguntas sobre un libro específico.
+
+Reglas estrictas:
+- Solo responde basándote en el contenido del libro proporcionado abajo.
+- Si la pregunta no se puede contestar con el texto, di amablemente que esa información no aparece en el libro.
+- Responde en español, en 2-4 oraciones máximo, tono cercano y amable.
+- No inventes datos. No salgas del tema del libro.
+
+Título: ${title}
+
+Contenido del libro:
+
+${truncated}`;
+
+    const history = Array.isArray(messages)
+      ? messages
+          .filter(m => m && (m.role === 'user' || m.role === 'assistant') && m.content)
+          .slice(-20) // últimos 20 mensajes max
+          .map(m => ({ role: m.role, content: String(m.content) }))
+      : [];
+
+    const response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 600,
+      system: [
+        {
+          type: 'text',
+          text: systemPrompt,
+          cache_control: { type: 'ephemeral' } // reduce 90% costo en preguntas subsecuentes
+        }
+      ],
+      messages: [
+        ...history,
+        { role: 'user', content: String(question).slice(0, 500) }
+      ]
+    });
+
+    const answer = response.content[0]?.text || '';
+    res.json({
+      answer,
+      usage: response.usage // útil para confirmar que prompt caching está funcionando
+    });
+  } catch (err) {
+    console.error('Error chat:', err.message);
+    res.status(500).json({ error: 'Error al procesar tu pregunta. Intenta de nuevo.' });
   }
 });
 

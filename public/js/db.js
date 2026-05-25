@@ -2,8 +2,24 @@
 const DB = {
   dbName: 'librovoz-db',
   storeName: 'books',
-  version: 1,
+  quotaStore: 'quota',
+  version: 2,
   _db: null,
+
+  QUOTA_KEY: 'singleton',
+
+  defaultQuota() {
+    return {
+      id: this.QUOTA_KEY,
+      freeBooksUsed: 0,
+      freeChatUsed: 0,
+      paidBooksRemaining: 0,
+      paidChatRemaining: 0,
+      summaryUnlocked: false,
+      purchasedPacks: [],
+      updatedAt: new Date().toISOString()
+    };
+  },
 
   async open() {
     if (this._db) return this._db;
@@ -15,6 +31,9 @@ const DB = {
         const db = e.target.result;
         if (!db.objectStoreNames.contains(this.storeName)) {
           db.createObjectStore(this.storeName, { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains(this.quotaStore)) {
+          db.createObjectStore(this.quotaStore, { keyPath: 'id' });
         }
       };
 
@@ -28,6 +47,71 @@ const DB = {
         reject(request.error);
       };
     });
+  },
+
+  // ── Quota helpers ────────────────────────────────────────────────────
+  async getQuota() {
+    try {
+      const db = await this.open();
+      return new Promise((resolve) => {
+        const tx = db.transaction(this.quotaStore, 'readonly');
+        const store = tx.objectStore(this.quotaStore);
+        const request = store.get(this.QUOTA_KEY);
+        request.onsuccess = () => resolve(request.result || this.defaultQuota());
+        request.onerror = () => resolve(this.defaultQuota());
+      });
+    } catch {
+      return this.defaultQuota();
+    }
+  },
+
+  async updateQuota(updates) {
+    try {
+      const current = await this.getQuota();
+      const next = { ...current, ...updates, updatedAt: new Date().toISOString() };
+      const db = await this.open();
+      return new Promise((resolve) => {
+        const tx = db.transaction(this.quotaStore, 'readwrite');
+        tx.objectStore(this.quotaStore).put(next);
+        tx.oncomplete = () => resolve(next);
+        tx.onerror = () => resolve(current);
+      });
+    } catch {
+      return this.defaultQuota();
+    }
+  },
+
+  async consumeFreeBook() {
+    const q = await this.getQuota();
+    return this.updateQuota({ freeBooksUsed: q.freeBooksUsed + 1 });
+  },
+
+  async consumePaidBook() {
+    const q = await this.getQuota();
+    return this.updateQuota({ paidBooksRemaining: Math.max(0, q.paidBooksRemaining - 1) });
+  },
+
+  async consumeFreeChat() {
+    const q = await this.getQuota();
+    return this.updateQuota({ freeChatUsed: q.freeChatUsed + 1 });
+  },
+
+  async consumePaidChat() {
+    const q = await this.getQuota();
+    return this.updateQuota({ paidChatRemaining: Math.max(0, q.paidChatRemaining - 1) });
+  },
+
+  async addPaidBooks(n) {
+    const q = await this.getQuota();
+    return this.updateQuota({
+      paidBooksRemaining: q.paidBooksRemaining + n,
+      summaryUnlocked: true
+    });
+  },
+
+  async addPaidChat(n) {
+    const q = await this.getQuota();
+    return this.updateQuota({ paidChatRemaining: q.paidChatRemaining + n });
   },
 
   async getAll() {

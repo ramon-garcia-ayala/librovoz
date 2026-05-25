@@ -1,4 +1,4 @@
-const CACHE_NAME = 'librovoz-v6';
+const CACHE_NAME = 'librovoz-v7';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -30,10 +30,13 @@ const STATIC_ASSETS = [
   '/js/paywall.js',
   '/js/tesseract-ocr.js',
   '/js/pdf-extract.js',
+  '/js/chat.js',
+  '/css/chat.css',
   '/lib/tesseract/tesseract.min.js',
   '/lib/tesseract/worker.min.js',
   '/pages/library.html',
-  '/pages/paywall.html'
+  '/pages/paywall.html',
+  '/pages/chat.html'
 ];
 
 self.addEventListener('install', e => {

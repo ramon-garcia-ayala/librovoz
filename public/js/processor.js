@@ -73,6 +73,18 @@ const Processor = {
       if (progressEl) progressEl.style.display = 'none';
       if (modesEl) modesEl.style.display = 'block';
 
+      // Bloquear resumen si el próximo libro es free
+      const nextTier = await Quota.getBookTier();
+      const summaryLock = document.getElementById('mode-locked-summary');
+      const summaryCard = document.getElementById('mode-card-summary');
+      if (nextTier === 'free') {
+        if (summaryLock) summaryLock.style.display = 'flex';
+        if (summaryCard) summaryCard.classList.add('locked');
+      } else {
+        if (summaryLock) summaryLock.style.display = 'none';
+        if (summaryCard) summaryCard.classList.remove('locked');
+      }
+
     } catch (err) {
       console.error('Error en procesamiento:', err);
       setProgress(0, 'Error al procesar', err.message);
@@ -132,6 +144,15 @@ const Processor = {
   },
 
   async selectMode(mode) {
+    // Verificar permiso de resumen
+    if (mode === 'summary') {
+      const tier = await Quota.getBookTier();
+      if (tier === 'free') {
+        App.go('paywall');
+        return;
+      }
+    }
+
     App.state.processingMode = mode;
 
     if (mode === 'summary') {

@@ -47,6 +47,10 @@ const API = {
     return this._fetch('/summarize', { text, chapterName });
   },
 
+  async chat(bookText, bookTitle, messages, question) {
+    return this._fetch('/chat', { bookText, bookTitle, messages, question });
+  },
+
   async health() {
     try {
       const res = await fetch(`${this.BASE}/health`);

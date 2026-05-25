@@ -5,7 +5,7 @@ const Library = {
     const grid = document.getElementById('library-grid');
     const empty = document.getElementById('library-empty');
 
-    this.renderQuotaBadge(books.length);
+    await this.renderQuotaBadge();
 
     if (books.length === 0) {
       if (grid) grid.style.display = 'none';
@@ -19,26 +19,26 @@ const Library = {
     this.renderBooks(books);
   },
 
-  renderQuotaBadge(used) {
+  async renderQuotaBadge() {
     const badge = document.getElementById('library-quota');
     if (!badge) return;
 
-    const limit = LIMITS.FREE_TIER_BOOKS;
-    const atLimit = used >= limit;
+    const status = await Quota.getStatus();
+    const label = await Quota.getBookLabel();
 
     badge.classList.remove('warning', 'danger');
 
-    if (atLimit) {
+    if (status.atBookLimit) {
       badge.classList.add('danger');
       badge.innerHTML = `
-        <span class="library-quota-text">Has usado tus ${limit} libros gratis</span>
+        <span class="library-quota-text">${label}</span>
         <button class="library-quota-cta" onclick="App.go('paywall')">Comprar más</button>
       `;
-    } else if (used >= limit - 1) {
+    } else if (status.paidBooksRemaining === 0 && status.freeBooksRemaining === 1) {
       badge.classList.add('warning');
-      badge.innerHTML = `<span class="library-quota-text">Te queda 1 libro gratis</span>`;
+      badge.innerHTML = `<span class="library-quota-text">${label}</span>`;
     } else {
-      badge.innerHTML = `<span class="library-quota-text">Has usado ${used} de ${limit} libros gratis</span>`;
+      badge.innerHTML = `<span class="library-quota-text">${label}</span>`;
     }
     badge.style.display = 'flex';
   },

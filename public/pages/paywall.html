@@ -6,13 +6,14 @@
         <path d="M20 34l8 8 16-16" stroke="#007AFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
       </svg>
     </div>
-    <h1 class="paywall-title">Has procesado tus libros gratis</h1>
-    <p class="paywall-subtitle">Compra créditos para seguir escaneando libros</p>
+    <h1 class="paywall-title">Desbloquea LibroVoz</h1>
+    <p class="paywall-subtitle">Más libros, resúmenes con IA y chat sobre lo que leas</p>
   </div>
 
+  <!-- Pack principal -->
   <div class="paywall-package">
     <div class="paywall-package-badge">Mejor opción</div>
-    <h2 class="paywall-package-title" id="paywall-package-title">10 libros</h2>
+    <h2 class="paywall-package-title" id="paywall-package-title">Pack 10 libros con IA</h2>
     <div class="paywall-package-price">
       <span class="paywall-price-amount" id="paywall-price-amount">$99</span>
       <span class="paywall-price-currency">MXN</span>
@@ -26,27 +27,40 @@
       </li>
       <li>
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#34C759" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>Resumen IA por capítulo (modo &ldquo;condensado&rdquo;)</span>
+      </li>
+      <li>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#34C759" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span><strong>50 preguntas de chat</strong> sobre tus libros</span>
+      </li>
+      <li>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#34C759" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         <span>Sin suscripción — paga solo cuando uses</span>
       </li>
-      <li>
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#34C759" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        <span>Tus libros se guardan en tu dispositivo</span>
-      </li>
-      <li>
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#34C759" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        <span>Acceso desde cualquier dispositivo con tu cuenta</span>
-      </li>
     </ul>
+
+    <button class="btn btn-primary paywall-cta" onclick="Paywall.buyPackage('books')">
+      Comprar Pack Libros
+    </button>
   </div>
 
-  <div class="paywall-actions">
-    <button class="btn btn-primary paywall-cta" onclick="Paywall.buyPackage()">
-      Comprar 10 libros
-    </button>
-    <button class="btn btn-ghost paywall-back" onclick="App.go('library')">
-      Volver a mi biblioteca
+  <!-- Pack chat extra (secundario) -->
+  <div class="paywall-package paywall-package-secondary">
+    <h2 class="paywall-package-title" id="paywall-chat-title">Pack 50 preguntas extra</h2>
+    <div class="paywall-package-price">
+      <span class="paywall-price-amount" id="paywall-chat-amount">$19</span>
+      <span class="paywall-price-currency">MXN</span>
+    </div>
+    <p class="paywall-package-detail">Solo créditos de chat, sin libros nuevos</p>
+
+    <button class="btn btn-ghost paywall-cta-secondary" onclick="Paywall.buyPackage('chat')">
+      Comprar solo preguntas
     </button>
   </div>
+
+  <button class="btn btn-ghost paywall-back" onclick="App.go('library')">
+    Volver a mi biblioteca
+  </button>
 
   <p class="paywall-note">
     Pago seguro vía Stripe. Sin renovación automática.

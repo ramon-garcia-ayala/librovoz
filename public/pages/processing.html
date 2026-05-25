@@ -39,7 +39,7 @@
         <h4>Texto completo</h4>
         <p>Escucha cada palabra tal cual está escrita</p>
       </div>
-      <div class="card processing-mode-card" onclick="Processor.selectMode('summary')">
+      <div class="card processing-mode-card" id="mode-card-summary" onclick="Processor.selectMode('summary')">
         <svg viewBox="0 0 48 48" width="48" height="48" fill="none">
           <rect x="8" y="4" width="32" height="40" rx="3" fill="#FF9500" opacity="0.15"/>
           <path d="M16 16h16M16 22h12M16 28h14" stroke="#FF9500" stroke-width="2.5" stroke-linecap="round"/>
@@ -48,6 +48,13 @@
         </svg>
         <h4>Resumen por capítulo</h4>
         <p>Versión condensada de cada capítulo</p>
+        <div class="mode-locked-overlay" id="mode-locked-summary" style="display:none">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2"/>
+            <path d="M7 11V7a5 5 0 0110 0v4"/>
+          </svg>
+          <span>Solo libros pagados</span>
+        </div>
       </div>
     </div>
   </div>

@@ -7,9 +7,8 @@ const Scanner = {
   cameraAvailable: false,
 
   async init() {
-    // Chequeo de cuota: si llegó al límite gratis, redirigir a paywall
-    const quota = await Quota.getStatus();
-    if (quota.atLimit) {
+    // Chequeo de cuota: si no hay libros disponibles, redirigir a paywall
+    if (!(await Quota.canProcessBook())) {
       App.go('paywall');
       return;
     }
