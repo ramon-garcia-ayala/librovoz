@@ -200,7 +200,7 @@ const Voices = {
       };
 
       await DB.save(book);
-      App.state._loadedBookId = book.id;
+      App.setLoadedBookId(book.id);
       App.state._isDraft = false;
     } catch (err) {
       console.error('Error guardando libro:', err);

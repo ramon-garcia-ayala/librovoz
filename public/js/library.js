@@ -154,6 +154,12 @@ const Library = {
     } catch (err) {
       console.warn('No se pudo restaurar cuota:', err);
     }
+    // Si el libro borrado era el activo, limpiar bookId persistido
+    if (App.state._loadedBookId === bookId || App.getLastBookId() === bookId) {
+      App.setLoadedBookId(null);
+      App.state.chapters = [];
+      App.state.fullText = '';
+    }
     await DB.delete(bookId);
     App.showToast('Libro eliminado');
     this.init();
@@ -174,7 +180,7 @@ const Library = {
     App.state.fullText = book.fullText || '';
     App.state.processingMode = book.processingMode;
     App.state.currentChapter = book.currentChapter || 0;
-    App.state._loadedBookId = book.id;
+    App.setLoadedBookId(book.id);
     App.state._isDraft = book.isDraft === true;
     App.state._savedSpeed = book.speed || 1;
 

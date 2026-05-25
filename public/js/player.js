@@ -40,7 +40,17 @@ const Player = {
   BASE_WPM: 150,
   WATCHDOG_INTERVAL: 1500, // ms para detectar speech atascado
 
-  init() {
+  async init() {
+    // Si recargamos la página, App.state puede estar vacío. Restaurar del último libro.
+    if (!App.state.chapters || App.state.chapters.length === 0) {
+      const restored = await this.restoreFromStorage();
+      if (!restored) {
+        // No hay libro que restaurar → ir a biblioteca
+        App.go('library');
+        return;
+      }
+    }
+
     this.currentChapter = App.state.currentChapter || 0;
 
     const savedSpeed = App.state._savedSpeed || 1;
@@ -57,6 +67,60 @@ const Player = {
 
     const btn = document.getElementById('btn-speed');
     if (btn) btn.textContent = this.speed + 'x';
+  },
+
+  // Restaura App.state desde IndexedDB usando el último libro abierto.
+  // Devuelve true si encontró y cargó libro, false si no hay nada.
+  async restoreFromStorage() {
+    let book = null;
+
+    // 1. Intentar por bookId persistido
+    const lastId = App.getLastBookId();
+    if (lastId) {
+      try { book = await DB.get(lastId); } catch {}
+    }
+
+    // 2. Fallback: el libro más reciente (DB.getAll ya viene sorted por lastPlayedAt desc)
+    if (!book) {
+      try {
+        const all = await DB.getAll();
+        book = (all && all.length > 0) ? all[0] : null;
+      } catch {}
+    }
+
+    if (!book || !book.chapters || book.chapters.length === 0) return false;
+
+    // Si el libro es un draft (sin voz seleccionada), mejor mandarlo a voices
+    if (book.isDraft === true) {
+      App.state.coverThumbnail = book.coverThumbnail || null;
+      App.state.coverInfo = { title: book.title, author: book.author, subtitle: book.subtitle || '' };
+      App.state.chapters = book.chapters;
+      App.state.fullText = book.fullText || '';
+      App.state.processingMode = book.processingMode;
+      App.state._isDraft = true;
+      App.setLoadedBookId(book.id);
+      App.go('voices');
+      return false;
+    }
+
+    // Cargar al state (mismo patrón que Library.open)
+    App.state.coverImage = null;
+    App.state.coverThumbnail = book.coverThumbnail || null;
+    App.state.coverInfo = { title: book.title, author: book.author, subtitle: book.subtitle || '' };
+    App.state.chapters = book.chapters;
+    App.state.fullText = book.fullText || '';
+    App.state.processingMode = book.processingMode;
+    App.state.currentChapter = book.currentChapter || 0;
+    App.state._savedSpeed = book.speed || 1;
+    App.state._isDraft = false;
+    App.setLoadedBookId(book.id);
+
+    // Re-resolver voz por nombre (puede tardar si voces no cargaron aún)
+    try {
+      App.state.selectedVoice = await Library.resolveVoice(book.voiceName, book.voiceLang);
+    } catch {}
+
+    return true;
   },
 
   setupCover() {

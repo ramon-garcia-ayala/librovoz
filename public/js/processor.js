@@ -389,7 +389,7 @@ const Processor = {
       };
 
       await DB.save(book);
-      App.state._loadedBookId = book.id;
+      App.setLoadedBookId(book.id);
       App.state._isDraft = true;
 
       // Consumir cuota SOLO la primera vez (no en re-guardados de draft)

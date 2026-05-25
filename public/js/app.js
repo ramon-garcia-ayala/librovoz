@@ -148,6 +148,23 @@ const App = {
     location.hash = `#/${screen}`;
   },
 
+  // Helper centralizado: setea bookId activo y persiste para sobrevivir reload
+  setLoadedBookId(id) {
+    this.state._loadedBookId = id;
+    try {
+      if (id) localStorage.setItem('librovoz_last_book_id', id);
+      else localStorage.removeItem('librovoz_last_book_id');
+    } catch {}
+  },
+
+  getLastBookId() {
+    try {
+      return localStorage.getItem('librovoz_last_book_id');
+    } catch {
+      return null;
+    }
+  },
+
   showToast(msg, type = 'info') {
     const existing = document.querySelector('.toast');
     if (existing) existing.remove();
