@@ -29,16 +29,15 @@
   animation: breath var(--dur-breath) var(--ease-breath) infinite;
 }
 
-/* ── Mascota: pajarito pixel-art ─────────────────────────────────────── */
+/* ── Mascota: pajarito pixel-art parado sobre libro abierto ─────────── */
 .landing-bird {
   background: transparent;
   border: none;
   padding: 0;
-  margin: 0 0 var(--space-5);
+  margin: 0 0 var(--space-4);
   cursor: pointer;
   display: inline-block;
   -webkit-tap-highlight-color: transparent;
-  animation: bird-bob 2.2s var(--ease-glass) infinite;
 }
 
 .landing-bird-svg {
@@ -46,13 +45,37 @@
   filter: drop-shadow(0 8px 16px rgba(139, 163, 184, 0.25));
 }
 
-/* Bob vertical suave */
-@keyframes bird-bob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+/* El grupo del pajarito vive su vida: oscila + cada ~7s da un saltito sincronizado
+   con el flip de página */
+.bird-group {
+  transform-origin: 70px 104px;
+  transform-box: fill-box;
+  animation: bird-life 7s var(--ease-glass) infinite;
 }
 
-/* Parpadeo: cierra ambos ojos cada 4s */
+@keyframes bird-life {
+  /* Bob continuo (0-65%) */
+  0%   { transform: translateY(0); }
+  8%   { transform: translateY(-4px); }
+  16%  { transform: translateY(0); }
+  24%  { transform: translateY(-4px); }
+  32%  { transform: translateY(0); }
+  40%  { transform: translateY(-4px); }
+  48%  { transform: translateY(0); }
+  56%  { transform: translateY(-4px); }
+  64%  { transform: translateY(0); }
+  /* Salto grande sincronizado con flip (70-82%) */
+  70%  { transform: translateY(-2px); }
+  74%  { transform: translateY(-12px) rotate(-2deg); }
+  78%  { transform: translateY(-6px) rotate(2deg); }
+  82%  { transform: translateY(0) rotate(0); }
+  /* Pequeño rebote final */
+  86%  { transform: translateY(-3px); }
+  92%  { transform: translateY(0); }
+  100% { transform: translateY(0); }
+}
+
+/* Parpadeo cada 4s — independiente del ciclo de vida */
 .bird-eye,
 .bird-eye-pupil {
   transform-origin: center center;
@@ -65,30 +88,65 @@
   95%, 97% { transform: scaleY(0.1); }
 }
 
-/* Aleteo del ala cuando hover/tap */
+/* Ala se mueve sutilmente con el salto */
 .bird-wing {
-  transform-origin: 28px 60px;
-  transition: transform var(--dur-base) var(--ease-glass);
+  transform-origin: 44px 64px;
+  transform-box: fill-box;
+  animation: bird-wing-life 7s var(--ease-glass) infinite;
 }
 
-.landing-bird:hover .bird-wing,
-.landing-bird.bird-flap .bird-wing {
-  animation: bird-flap 0.4s var(--ease-glass);
+@keyframes bird-wing-life {
+  0%, 68%, 100% { transform: rotate(0deg); }
+  74% { transform: rotate(-15deg) translateY(-2px); }
+  80% { transform: rotate(6deg); }
+  84% { transform: rotate(0deg); }
 }
 
-@keyframes bird-flap {
-  0%, 100% { transform: translateY(0) rotate(0); }
-  30% { transform: translateY(-4px) rotate(-12deg); }
-  60% { transform: translateY(2px) rotate(6deg); }
+/* Página del libro que se gira cada 7s, sincronizada con el salto */
+.bird-book-page-flip {
+  transform-origin: 80px 126px;
+  transform-box: fill-box;
+  animation: bird-page-flip 7s var(--ease-glass) infinite;
 }
 
-.landing-bird.bird-flap {
-  animation: bird-bob 2.2s var(--ease-glass) infinite, bird-jump 0.4s var(--ease-glass);
+@keyframes bird-page-flip {
+  0%, 70% { transform: scaleX(1); }
+  74% { transform: scaleX(0.5); }
+  78% { transform: scaleX(0.05); }
+  82% { transform: scaleX(-0.5); }
+  86% { transform: scaleX(-1); }
+  90% { transform: scaleX(-1); }
+  /* Reset invisible (la animación se "esconde" detrás de las páginas estáticas) */
+  94% { transform: scaleX(0.05); }
+  100% { transform: scaleX(1); }
 }
 
-@keyframes bird-jump {
+/* Sombra del libro respira ligeramente */
+.bird-book {
+  animation: bird-book-breath 7s var(--ease-glass) infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+@keyframes bird-book-breath {
+  0%, 70%, 100% { transform: scaleY(1); }
+  74% { transform: scaleY(0.985); }
+  80% { transform: scaleY(1); }
+}
+
+/* Tap manual: pequeño feedback de salto */
+.landing-bird.bird-tap .bird-group {
+  animation: bird-life 7s var(--ease-glass) infinite, bird-pop 0.5s var(--ease-glass);
+}
+
+@keyframes bird-pop {
   0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.06); }
+  40% { transform: scale(1.08) translateY(-4px); }
+}
+
+/* Hover en desktop: feedback sutil */
+.landing-bird:hover .bird-wing {
+  animation-duration: 3.5s;
 }
 
 /* ── Ventajas (3 cards glass compactas) ────────────────────────────── */
