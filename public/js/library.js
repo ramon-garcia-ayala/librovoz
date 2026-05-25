@@ -145,6 +145,15 @@ const Library = {
   },
 
   async deleteBook(bookId) {
+    // Antes de borrar, devolver el cupo de cuota (free → freeBooksUsed--, paid → paidBooksRemaining++)
+    try {
+      const book = await DB.get(bookId);
+      if (book && book.tier) {
+        await DB.restoreBookQuota(book.tier);
+      }
+    } catch (err) {
+      console.warn('No se pudo restaurar cuota:', err);
+    }
     await DB.delete(bookId);
     App.showToast('Libro eliminado');
     this.init();

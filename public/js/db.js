@@ -114,6 +114,23 @@ const DB = {
     return this.updateQuota({ paidChatRemaining: q.paidChatRemaining + n });
   },
 
+  // Devolver el cupo cuando se elimina un libro. Imported NO devuelve nada
+  // (no consumió cuota al importar).
+  async restoreBookQuota(tier) {
+    const q = await this.getQuota();
+    if (tier === 'free') {
+      return this.updateQuota({
+        freeBooksUsed: Math.max(0, (q.freeBooksUsed || 0) - 1)
+      });
+    }
+    if (tier === 'paid') {
+      return this.updateQuota({
+        paidBooksRemaining: (q.paidBooksRemaining || 0) + 1
+      });
+    }
+    return q;
+  },
+
   async getAll() {
     try {
       const db = await this.open();
