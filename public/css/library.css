@@ -21,6 +21,40 @@
   margin-bottom: var(--space-6);
 }
 
+.library-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.library-import-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-full);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  font-family: var(--font-family);
+  cursor: pointer;
+  transition: transform var(--dur-base) var(--ease-glass),
+              border-color var(--dur-base) var(--ease-glass),
+              color var(--dur-base) var(--ease-glass);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.library-import-btn:hover {
+  transform: scale(1.03);
+  color: var(--color-accent);
+  border-color: rgba(var(--accent-rgb), 0.40);
+}
+
 .library-title {
   font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-semibold);
@@ -187,10 +221,17 @@
   border-radius: 2px;
 }
 
-/* Botón eliminar */
-.library-book-delete {
-  width: 40px;
-  height: 40px;
+/* Acciones del libro (descargar + eliminar) */
+.library-book-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.library-book-action {
+  width: 36px;
+  height: 36px;
   border-radius: var(--radius-full);
   background: none;
   border: none;
@@ -199,14 +240,20 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  flex-shrink: 0;
-  transition: all var(--transition-base);
+  transition: color var(--dur-base) var(--ease-glass),
+              background var(--dur-base) var(--ease-glass);
   -webkit-tap-highlight-color: transparent;
 }
 
+.library-book-action:hover {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.library-book-delete:hover,
 .library-book-delete:active {
   color: var(--color-error);
-  background: rgba(255, 59, 48, 0.08);
+  background: rgba(201, 125, 112, 0.10);
 }
 
 /* ── Estado vacío ─────────────────────────────────────────────────────── */

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'librovoz-v8';
+const CACHE_NAME = 'librovoz-v9';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -32,6 +32,7 @@ const STATIC_ASSETS = [
   '/js/pdf-extract.js',
   '/js/chat.js',
   '/js/microcopy.js',
+  '/js/book-io.js',
   '/css/chat.css',
   '/lib/tesseract/tesseract.min.js',
   '/lib/tesseract/worker.min.js',

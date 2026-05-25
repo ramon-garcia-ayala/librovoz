@@ -75,14 +75,63 @@ const Library = {
               </div>
             ` : ''}
           </div>
-          <button class="library-book-delete" onclick="event.stopPropagation(); Library.confirmDelete('${book.id}', '${(book.title || '').replace(/'/g, '\\&#39;')}')">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-            </svg>
-          </button>
+          <div class="library-book-actions">
+            <button class="library-book-action" title="Descargar" onclick="event.stopPropagation(); Library.exportBook('${book.id}')">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+            </button>
+            <button class="library-book-action library-book-delete" title="Eliminar" onclick="event.stopPropagation(); Library.confirmDelete('${book.id}', '${(book.title || '').replace(/'/g, '\\&#39;')}')">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+              </svg>
+            </button>
+          </div>
         </div>
       `;
     }).join('');
+  },
+
+  async exportBook(bookId) {
+    const book = await DB.get(bookId);
+    if (!book) {
+      App.showToast('No se encontró el libro', 'error');
+      return;
+    }
+    try {
+      const filename = BookIO.exportBook(book);
+      App.showToast(`Descargado: ${filename}`, 'info');
+    } catch (err) {
+      console.error('Error exportando:', err);
+      App.showToast('Error al descargar el libro', 'error');
+    }
+  },
+
+  openImportPicker() {
+    const input = document.getElementById('library-import-input');
+    if (!input) return;
+    if (!input._wired) {
+      input.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (file) await this.handleImportFile(file);
+        input.value = '';
+      });
+      input._wired = true;
+    }
+    input.click();
+  },
+
+  async handleImportFile(file) {
+    try {
+      const book = await BookIO.importFromFile(file);
+      App.showToast(`Libro importado: ${book.title}`, 'info');
+      this.init();
+    } catch (err) {
+      console.error('Error importando:', err);
+      App.showToast(err.message || 'Error al importar el libro', 'error');
+    }
   },
 
   confirmDelete(bookId, title) {
