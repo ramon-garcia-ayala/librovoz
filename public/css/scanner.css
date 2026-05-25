@@ -434,6 +434,77 @@
   color: #FFFFFF;
 }
 
+/* Botón back y rotate: prioridad de toque sobre video y guía */
+.scanner-btn-back,
+.scanner-btn-rotate {
+  position: relative;
+  z-index: 25;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: var(--radius-full);
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-base) var(--ease-glass),
+              background var(--dur-base) var(--ease-glass);
+}
+
+.scanner-btn-back:active,
+.scanner-btn-rotate:active {
+  transform: scale(0.92);
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.scanner-btn-rotate.rotated {
+  background: rgba(var(--accent-rgb), 0.55);
+  border-color: rgba(var(--accent-rgb), 0.7);
+}
+
+.scanner-btn-rotate.rotated svg {
+  transform: rotate(90deg);
+  transition: transform var(--dur-slow) var(--ease-glass);
+}
+
+/* ── Modo landscape (cuando body tiene .scanner-landscape) ────────────── */
+body.scanner-landscape .scanner-rotate-hint {
+  display: none !important;
+}
+
+body.scanner-landscape .scanner-topbar {
+  padding-left: max(var(--space-4), env(safe-area-inset-left));
+  padding-right: max(var(--space-4), env(safe-area-inset-right));
+}
+
+body.scanner-landscape .scanner-bottom {
+  padding-left: max(var(--space-4), env(safe-area-inset-left));
+  padding-right: max(var(--space-4), env(safe-area-inset-right));
+}
+
+/* En landscape el marco se hace MÁS ancho automáticamente */
+@media (orientation: landscape) {
+  .scanner-guide {
+    width: 70%;
+    max-width: 720px;
+    aspect-ratio: 16 / 9;
+  }
+  .scanner-guide.spread-mode {
+    aspect-ratio: 5 / 3;
+  }
+  /* Marca el thumbstrip más compacto en landscape */
+  .scanner-thumbstrip {
+    bottom: auto;
+    top: 60px;
+    max-width: 50%;
+  }
+}
+
 @keyframes pulse-danger {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.05); }

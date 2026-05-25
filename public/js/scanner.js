@@ -455,10 +455,80 @@ const Scanner = {
     }
   },
 
-  destroy() {
+  // Volver — robusto: limpia cámara, orientación, fullscreen y va a biblioteca
+  async goBack() {
+    await this.destroy();
+    // Si tienes algún libro guardado o estás navegando, vas a biblioteca.
+    // Es el lugar más útil al cancelar un escaneo.
+    App.go('library');
+  },
+
+  // Rotar pantalla a landscape / vuelta a portrait
+  async toggleRotation() {
+    if (this._isLandscape) {
+      await this._exitLandscape();
+    } else {
+      await this._enterLandscape();
+    }
+  },
+
+  async _enterLandscape() {
+    try {
+      // Algunos navegadores requieren fullscreen antes de bloquear orientación
+      const el = document.documentElement;
+      if (!document.fullscreenElement && el.requestFullscreen) {
+        try { await el.requestFullscreen({ navigationUI: 'hide' }); } catch {}
+      }
+      if (screen && screen.orientation && screen.orientation.lock) {
+        await screen.orientation.lock('landscape');
+        this._isLandscape = true;
+        document.body.classList.add('scanner-landscape');
+        this._updateRotateButton();
+        if (navigator.vibrate) navigator.vibrate(20);
+        return;
+      }
+      // Fallback: navegador no soporta lock → mostrar hint
+      App.showToast('Tu navegador no permite forzar rotación. Gira el celular manualmente.', 'info');
+    } catch (err) {
+      console.warn('No se pudo forzar landscape:', err.message);
+      App.showToast('Gira el celular manualmente para horizontal', 'info');
+    }
+  },
+
+  async _exitLandscape() {
+    try {
+      if (screen && screen.orientation && screen.orientation.unlock) {
+        try { screen.orientation.unlock(); } catch {}
+      }
+      if (document.fullscreenElement && document.exitFullscreen) {
+        try { await document.exitFullscreen(); } catch {}
+      }
+    } catch {}
+    this._isLandscape = false;
+    document.body.classList.remove('scanner-landscape');
+    this._updateRotateButton();
+  },
+
+  _updateRotateButton() {
+    const btn = document.getElementById('btn-rotate');
+    if (btn) btn.classList.toggle('rotated', !!this._isLandscape);
+  },
+
+  async destroy() {
+    // 1. Detener stream de cámara
     if (this.stream) {
-      this.stream.getTracks().forEach(t => t.stop());
+      try { this.stream.getTracks().forEach(t => t.stop()); } catch {}
       this.stream = null;
     }
+    // 2. Limpiar video element
+    if (this.video) {
+      try { this.video.srcObject = null; } catch {}
+    }
+    // 3. Liberar orientación si estaba bloqueada
+    if (this._isLandscape) {
+      await this._exitLandscape();
+    }
+    // 4. Reset estado interno
+    this.capturing = false;
   }
 };
