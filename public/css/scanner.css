@@ -103,6 +103,81 @@
   aspect-ratio: 3 / 4;
   z-index: 5;
   pointer-events: none;
+  transition: aspect-ratio 0.5s var(--ease-glass),
+              width 0.5s var(--ease-glass),
+              max-width 0.5s var(--ease-glass);
+}
+
+/* Modo 2 páginas: el marco se vuelve horizontal (libro abierto) */
+.scanner-guide.spread-mode {
+  width: 92%;
+  max-width: 560px;
+  aspect-ratio: 4 / 3;
+}
+
+/* Línea divisora central que indica el lomo del libro */
+.scanner-guide-divider {
+  position: absolute;
+  top: 8%;
+  bottom: 8%;
+  left: 50%;
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(255, 255, 255, 0.50) 20%,
+    rgba(255, 255, 255, 0.50) 80%,
+    transparent 100%
+  );
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.5s var(--ease-glass);
+  pointer-events: none;
+}
+
+.scanner-guide.spread-mode .scanner-guide-divider {
+  opacity: 1;
+}
+
+/* Banner flotante: "Pon el celular horizontal" cuando estás en spread y en portrait */
+.scanner-rotate-hint {
+  position: absolute;
+  top: max(120px, calc(env(safe-area-inset-top) + 88px));
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: rgba(0, 0, 0, 0.70);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-full);
+  z-index: 15;
+  animation: rotate-hint-pulse 2s var(--ease-breath) infinite;
+  white-space: nowrap;
+}
+
+.scanner-rotate-hint.visible {
+  display: inline-flex;
+}
+
+.scanner-rotate-hint svg {
+  animation: rotate-icon 2s var(--ease-breath) infinite;
+}
+
+@keyframes rotate-icon {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(85deg); }
+}
+
+@keyframes rotate-hint-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
 }
 
 .scanner-guide-corner {

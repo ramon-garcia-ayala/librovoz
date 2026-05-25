@@ -19,7 +19,20 @@ const Scanner = {
     this.capturing = false;
 
     this.setupFileInputs();
+    this.setupOrientationListener();
     await this.requestCamera();
+  },
+
+  setupOrientationListener() {
+    if (this._orientationWired) return;
+    this._orientationWired = true;
+    const handler = () => this.updateRotateHint();
+    window.addEventListener('resize', handler);
+    window.addEventListener('orientationchange', handler);
+    // También al rotar pantalla con screen.orientation API
+    if (screen && screen.orientation && screen.orientation.addEventListener) {
+      screen.orientation.addEventListener('change', handler);
+    }
   },
 
   // ── Cámara ──────────────────────────────────────────────────────────
@@ -257,13 +270,42 @@ const Scanner = {
   updateSpreadToggleUI() {
     const btn = document.getElementById('btn-spread-mode');
     const label = document.getElementById('spread-mode-label');
-    if (!btn) return;
-    btn.classList.toggle('spread-active', this.spreadMode);
-    if (label) label.textContent = this.spreadMode ? '2 páginas' : '1 página';
+    const guide = document.getElementById('scanner-guide');
+    const guideLabel = document.getElementById('scanner-guide-label');
 
-    // Visible solo en fases pages e index
-    const visible = this.phase === 'pages' || this.phase === 'index';
-    btn.style.display = visible ? 'inline-flex' : 'none';
+    if (btn) {
+      btn.classList.toggle('spread-active', this.spreadMode);
+      if (label) label.textContent = this.spreadMode ? '2 páginas' : '1 página';
+      const btnVisible = this.phase === 'pages' || this.phase === 'index';
+      btn.style.display = btnVisible ? 'inline-flex' : 'none';
+    }
+
+    // Guía: marco horizontal + label distinta cuando spread activo
+    if (guide) {
+      guide.classList.toggle('spread-mode', this.spreadMode);
+    }
+    if (guideLabel) {
+      if (this.spreadMode && (this.phase === 'pages' || this.phase === 'index')) {
+        guideLabel.textContent = 'Encuadra las 2 páginas dentro del marco';
+      }
+      // Si no es spread, el label se actualiza en updatePhaseUI
+    }
+
+    this.updateRotateHint();
+  },
+
+  // Mostrar/ocultar hint de "gira el celular" según orientación del dispositivo
+  updateRotateHint() {
+    const hint = document.getElementById('scanner-rotate-hint');
+    if (!hint) return;
+
+    const isSpread = this.spreadMode;
+    const inRelevantPhase = this.phase === 'pages' || this.phase === 'index';
+    const isPortrait = window.innerHeight > window.innerWidth;
+
+    // Mostrar solo si: spread activo + fase relevante + portrait actual
+    const show = isSpread && inRelevantPhase && isPortrait;
+    hint.classList.toggle('visible', show);
   },
 
   // ── Contador con estado warning/error según % usado ────────────────
