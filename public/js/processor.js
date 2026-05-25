@@ -45,11 +45,10 @@ const Processor = {
         const total = App.state.bookPages.length;
         setProgress(15, 'Leyendo páginas en tu dispositivo...', `0 de ${total}`);
 
-        App.state.fullText = await OCR.processAllPages((current, total, meta) => {
+        App.state.fullText = await OCR.processAllPages((current, total, meta, fallbackCount) => {
           const pct = 15 + Math.round((current / total) * 60);
-          const reviewCount = OCR.getReviewablePages().length;
-          const reviewLabel = reviewCount > 0 ? ` · ${reviewCount} para revisar` : '';
-          setProgress(pct, 'Leyendo páginas en tu dispositivo...', `${current} de ${total}${reviewLabel}`);
+          const aiLabel = fallbackCount > 0 ? ` · ${fallbackCount} mejoradas con IA` : '';
+          setProgress(pct, 'Leyendo páginas en tu dispositivo...', `${current} de ${total}${aiLabel}`);
         });
       }
 
@@ -88,8 +87,8 @@ const Processor = {
 
     container.innerHTML = `
       <div class="review-header">
-        <h3>${reviewable.length} página(s) con texto poco claro</h3>
-        <p>Puedes reescanear con IA para mejor calidad (cuesta 1 crédito adicional cada 100 páginas)</p>
+        <h3>${reviewable.length} página(s) con problemas</h3>
+        <p>Estas páginas no se pudieron leer bien. Puedes reintentar o continuar sin ellas.</p>
       </div>
       <div class="review-list">
         ${reviewable.map(p => `
