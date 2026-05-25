@@ -1,4 +1,4 @@
-const CACHE_NAME = 'librovoz-v19';
+const CACHE_NAME = 'librovoz-v20';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',

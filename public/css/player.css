@@ -553,6 +553,225 @@
   background: var(--color-accent-soft);
 }
 
+/* Botón de cambio de voz (pill con micrófono) */
+.player-voice-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  background: var(--glass-bg-faint);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-full);
+  padding: var(--space-1) var(--space-3);
+  cursor: pointer;
+  font-family: var(--font-family);
+  min-height: 32px;
+  max-width: 140px;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--dur-base) var(--ease-glass),
+              color var(--dur-base) var(--ease-glass),
+              border-color var(--dur-base) var(--ease-glass);
+}
+
+.player-voice-btn:hover {
+  color: var(--color-accent);
+  border-color: rgba(var(--accent-rgb), 0.35);
+  background: var(--color-accent-soft);
+}
+
+.player-voice-btn span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   VOICE PICKER SHEET — bottom sheet con lista de voces
+   ══════════════════════════════════════════════════════════════════════════ */
+.voice-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.voice-sheet.visible {
+  pointer-events: auto;
+  visibility: visible;
+}
+
+.voice-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(24, 28, 38, 0);
+  transition: background var(--dur-slow) var(--ease-glass);
+}
+
+.voice-sheet.visible .voice-sheet-backdrop {
+  background: rgba(24, 28, 38, 0.45);
+}
+
+.voice-sheet-panel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--glass-bg-strong);
+  backdrop-filter: var(--glass-blur-heavy);
+  -webkit-backdrop-filter: var(--glass-blur-heavy);
+  border-top: 1px solid var(--glass-border-strong);
+  border-top-left-radius: var(--radius-xl);
+  border-top-right-radius: var(--radius-xl);
+  max-height: 75vh;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(100%);
+  transition: transform var(--dur-slow) var(--ease-glass);
+  padding-bottom: env(safe-area-inset-bottom);
+  box-shadow: 0 -16px 48px rgba(24, 28, 38, 0.10), var(--glass-inset);
+}
+
+.voice-sheet.visible .voice-sheet-panel {
+  transform: translateY(0);
+}
+
+.voice-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-5) var(--space-5) var(--space-3);
+  border-bottom: 1px solid var(--glass-border);
+  position: relative;
+}
+
+.voice-sheet-header::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-border-strong);
+}
+
+.voice-sheet-title {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  letter-spacing: var(--tracking-tight);
+  margin-top: var(--space-2);
+}
+
+.voice-sheet-close {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  background: var(--glass-bg-faint);
+  border: 1px solid var(--glass-border);
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-top: var(--space-2);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.voice-sheet-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-3) var(--space-3) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  -webkit-overflow-scrolling: touch;
+}
+
+.voice-sheet-empty {
+  text-align: center;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
+  padding: var(--space-6);
+}
+
+.voice-sheet-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-family);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-base) var(--ease-glass),
+              border-color var(--dur-base) var(--ease-glass),
+              background var(--dur-base) var(--ease-glass);
+  color: var(--color-text);
+}
+
+.voice-sheet-item:hover {
+  transform: scale(1.01);
+  border-color: rgba(var(--accent-rgb), 0.30);
+}
+
+.voice-sheet-item.is-current {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.voice-sheet-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.voice-sheet-item-name {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.voice-sheet-item.is-current .voice-sheet-item-name {
+  color: var(--color-accent);
+}
+
+.voice-sheet-item-meta {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.voice-sheet-preview {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  border: 1px solid rgba(var(--accent-rgb), 0.25);
+  border-radius: var(--radius-full);
+  padding: 4px 10px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  font-family: var(--font-family);
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
    RESPONSIVE
    ══════════════════════════════════════════════════════════════════════════ */

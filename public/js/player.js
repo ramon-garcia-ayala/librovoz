@@ -50,6 +50,7 @@ const Player = {
 
     this.setupCover();
     this.setupChapterTabs();
+    this._updateVoiceLabel();
     this.loadChapter(this.currentChapter);
     this.setupScrollDetection();
     this.startWatchdog();
@@ -520,6 +521,126 @@ const Player = {
     if (this.currentChapter > 0) {
       this.loadChapter(this.currentChapter - 1);
     }
+  },
+
+  // ── Voice picker (sheet desde el player) ──────────────────────────────
+  openVoicePicker() {
+    const sheet = document.getElementById('voice-sheet');
+    if (!sheet) return;
+    this._renderVoicePicker();
+    sheet.classList.add('visible');
+  },
+
+  closeVoicePicker() {
+    const sheet = document.getElementById('voice-sheet');
+    if (sheet) sheet.classList.remove('visible');
+  },
+
+  _renderVoicePicker() {
+    const list = document.getElementById('voice-sheet-list');
+    if (!list) return;
+
+    // Obtener todas las voces disponibles y rankearlas como hace Voices
+    let voices = [];
+    if (typeof Voices !== 'undefined' && typeof Voices.loadVoices === 'function') {
+      // Si Voices ya cargó, reutilizar
+      if (!Voices.voices || Voices.voices.length === 0) {
+        Voices.loadVoices();
+      }
+      voices = Voices.voices || [];
+    }
+    if (voices.length === 0) {
+      // Fallback: rawget del navegador
+      voices = (speechSynthesis.getVoices() || []).filter(v => (v.lang || '').startsWith('es'));
+    }
+
+    const currentName = App.state.selectedVoice ? App.state.selectedVoice.name : '';
+
+    if (voices.length === 0) {
+      list.innerHTML = '<p class="voice-sheet-empty">No se encontraron voces disponibles.</p>';
+      return;
+    }
+
+    list.innerHTML = voices.map((v, i) => {
+      const cleanName = (v.name || '').replace(/\(.*\)/, '').trim() || 'Voz';
+      const tags = (typeof Voices !== 'undefined' && Voices._voiceTags) ? Voices._voiceTags(v) : [];
+      const gender = (typeof Voices !== 'undefined' && Voices._voiceGender) ? Voices._voiceGender(v) : null;
+      const isCurrent = v.name === currentName;
+      return `
+        <button class="voice-sheet-item ${isCurrent ? 'is-current' : ''}" onclick="Player.selectVoice(${i})">
+          <div class="voice-sheet-item-info">
+            <div class="voice-sheet-item-name">${cleanName}</div>
+            <div class="voice-sheet-item-meta">${v.lang}${gender ? ' · ' + gender : ''}${tags.length > 0 ? ' · ' + tags.join(' · ') : ''}</div>
+          </div>
+          ${isCurrent
+            ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+            : '<button class="voice-sheet-preview" onclick="event.stopPropagation(); Player.previewVoiceFromPicker(' + i + ')">Escuchar</button>'}
+        </button>
+      `;
+    }).join('');
+  },
+
+  previewVoiceFromPicker(index) {
+    const voice = (typeof Voices !== 'undefined' && Voices.voices) ? Voices.voices[index] : null;
+    if (!voice) return;
+    try { speechSynthesis.cancel(); } catch {}
+    const utt = new SpeechSynthesisUtterance('Hola, esta es mi voz para tu audiolibro.');
+    utt.voice = voice;
+    utt.lang = voice.lang || 'es-ES';
+    utt.rate = 1;
+    speechSynthesis.speak(utt);
+  },
+
+  async selectVoice(index) {
+    const voice = (typeof Voices !== 'undefined' && Voices.voices) ? Voices.voices[index] : null;
+    if (!voice) return;
+
+    // Detener preview si hay
+    try { speechSynthesis.cancel(); } catch {}
+
+    const wasPlaying = this.isPlaying;
+    if (wasPlaying) this.stop();
+
+    App.state.selectedVoice = voice;
+
+    // Persistir en el libro guardado
+    if (App.state._loadedBookId) {
+      try {
+        const book = await DB.get(App.state._loadedBookId);
+        if (book) {
+          book.voiceName = voice.name;
+          book.voiceLang = voice.lang;
+          await DB.save(book);
+        }
+      } catch (err) {
+        console.warn('No se pudo guardar la voz en el libro:', err);
+      }
+    }
+
+    // Actualizar label en el botón
+    this._updateVoiceLabel();
+
+    // Toast + cerrar sheet
+    if (App.showToast) App.showToast(`Voz cambiada a ${voice.name.replace(/\(.*\)/, '').trim()}`, 'info');
+    this.closeVoicePicker();
+
+    // Si estaba reproduciendo, reanudar con la nueva voz desde la palabra actual
+    if (wasPlaying) {
+      setTimeout(() => this.play(), 200);
+    }
+  },
+
+  _updateVoiceLabel() {
+    const label = document.getElementById('btn-voice-label');
+    if (!label) return;
+    const v = App.state.selectedVoice;
+    if (!v) {
+      label.textContent = 'Voz';
+      return;
+    }
+    const name = (v.name || '').replace(/\(.*\)/, '').trim();
+    // Truncar a 12 chars para no romper el layout
+    label.textContent = name.length > 12 ? name.slice(0, 11) + '…' : name;
   },
 
   cycleSpeed() {
