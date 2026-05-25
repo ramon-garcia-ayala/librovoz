@@ -1,0 +1,37 @@
+<div class="scanner">
+  <!-- Header flotante -->
+  <div class="scanner-header">
+    <span class="scanner-phase" id="scanner-phase">Paso 1/3: Portada</span>
+    <span class="badge" id="scanner-count" style="display:none">0</span>
+  </div>
+
+  <!-- Vista de cámara -->
+  <div class="scanner-camera">
+    <video id="camera-feed" autoplay playsinline muted></video>
+    <div class="scanner-flash" id="scanner-flash"></div>
+    <div class="scanner-guide" id="scanner-guide">
+      <div class="scanner-guide-corners"></div>
+    </div>
+  </div>
+
+  <!-- Input file fallback -->
+  <input type="file" id="file-input" accept="image/*" capture="environment" style="display:none" multiple>
+
+  <!-- Botón de captura -->
+  <div class="scanner-controls">
+    <button class="btn-capture" id="btn-capture" onclick="Scanner.capture()">
+      <svg viewBox="0 0 72 72" width="72" height="72">
+        <circle cx="36" cy="36" r="34" stroke="#fff" stroke-width="4" fill="none"/>
+        <circle cx="36" cy="36" r="28" fill="#fff"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Thumbnails -->
+  <div class="scanner-thumbnails" id="scanner-thumbnails"></div>
+
+  <!-- Acciones por fase -->
+  <div class="scanner-actions" id="scanner-actions">
+    <button class="btn btn-primary" id="btn-phase-action" style="display:none" onclick="Scanner.nextPhase()">Siguiente paso</button>
+  </div>
+</div>

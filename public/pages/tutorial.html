@@ -1,0 +1,66 @@
+<div class="tutorial">
+  <div class="tutorial-slider" id="tutorial-slider">
+    <div class="tutorial-track" id="tutorial-track">
+      <!-- Paso 1 -->
+      <div class="tutorial-slide">
+        <div class="card tutorial-card">
+          <svg viewBox="0 0 80 80" width="80" height="80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="15" y="10" width="50" height="60" rx="4" fill="#007AFF" opacity="0.15"/>
+            <rect x="20" y="15" width="40" height="30" rx="2" fill="#007AFF" opacity="0.3"/>
+            <circle cx="40" cy="30" r="8" fill="#007AFF" opacity="0.5"/>
+            <rect x="25" y="50" width="30" height="3" rx="1.5" fill="#007AFF" opacity="0.6"/>
+            <rect x="28" y="57" width="24" height="2" rx="1" fill="#007AFF" opacity="0.4"/>
+          </svg>
+          <h2>Fotografía la portada</h2>
+          <p>Captura la portada de tu libro para identificar el título y autor</p>
+        </div>
+      </div>
+      <!-- Paso 2 -->
+      <div class="tutorial-slide">
+        <div class="card tutorial-card">
+          <svg viewBox="0 0 80 80" width="80" height="80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="15" y="10" width="50" height="60" rx="4" fill="#007AFF" opacity="0.15"/>
+            <line x1="25" y1="22" x2="55" y2="22" stroke="#007AFF" stroke-width="2" opacity="0.5"/>
+            <line x1="25" y1="30" x2="50" y2="30" stroke="#007AFF" stroke-width="2" opacity="0.4"/>
+            <line x1="25" y1="38" x2="52" y2="38" stroke="#007AFF" stroke-width="2" opacity="0.5"/>
+            <line x1="25" y1="46" x2="48" y2="46" stroke="#007AFF" stroke-width="2" opacity="0.4"/>
+            <line x1="25" y1="54" x2="53" y2="54" stroke="#007AFF" stroke-width="2" opacity="0.5"/>
+            <line x1="25" y1="62" x2="45" y2="62" stroke="#007AFF" stroke-width="2" opacity="0.4"/>
+          </svg>
+          <h2>Fotografía el índice</h2>
+          <p>Puede tener varias páginas. Esto nos ayuda a dividir en capítulos</p>
+        </div>
+      </div>
+      <!-- Paso 3 -->
+      <div class="tutorial-slide">
+        <div class="card tutorial-card">
+          <svg viewBox="0 0 80 80" width="80" height="80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="12" width="40" height="56" rx="3" fill="#007AFF" opacity="0.1"/>
+            <rect x="18" y="8" width="40" height="56" rx="3" fill="#007AFF" opacity="0.2"/>
+            <rect x="26" y="4" width="40" height="56" rx="3" fill="#007AFF" opacity="0.3"/>
+            <line x1="32" y1="16" x2="58" y2="16" stroke="#fff" stroke-width="2" opacity="0.7"/>
+            <line x1="32" y1="23" x2="56" y2="23" stroke="#fff" stroke-width="2" opacity="0.6"/>
+            <line x1="32" y1="30" x2="54" y2="30" stroke="#fff" stroke-width="2" opacity="0.5"/>
+            <line x1="32" y1="37" x2="57" y2="37" stroke="#fff" stroke-width="2" opacity="0.5"/>
+            <line x1="32" y1="44" x2="52" y2="44" stroke="#fff" stroke-width="2" opacity="0.4"/>
+          </svg>
+          <h2>Fotografía las páginas</h2>
+          <p>Captura todas las páginas que quieras escuchar como audiolibro</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Indicador dots -->
+  <div class="tutorial-dots" id="tutorial-dots">
+    <span class="dot active" data-index="0"></span>
+    <span class="dot" data-index="1"></span>
+    <span class="dot" data-index="2"></span>
+  </div>
+
+  <!-- Botones -->
+  <div class="tutorial-actions">
+    <button class="btn" id="btn-skip" onclick="Tutorial.skip()">Saltar</button>
+    <button class="btn btn-primary" id="btn-next" onclick="Tutorial.next()">Siguiente</button>
+  </div>
+</div>

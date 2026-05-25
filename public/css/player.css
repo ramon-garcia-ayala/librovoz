@@ -1,0 +1,557 @@
+/* ==========================================================================
+   LibroVoz — Player (estilo Spotify Lyrics)
+   Reproductor de audiolibros con karaoke sincronizado
+   ========================================================================== */
+
+/* ── Contenedor principal ──────────────────────────────────────────────── */
+.player {
+  position: fixed;
+  inset: 0;
+  background: var(--player-bg-fallback);
+  background: var(--player-bg);
+  color: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: var(--z-base);
+}
+
+/* ── Cabecera: portada + info ──────────────────────────────────────────── */
+.player-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-12) var(--space-6) var(--space-4);
+  flex-shrink: 0;
+}
+
+.player-back {
+  width: var(--touch-min);
+  height: var(--touch-min);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--font-size-lg);
+  cursor: pointer;
+  border-radius: var(--radius-full);
+  transition: all var(--transition-base);
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+
+.player-back:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #FFFFFF;
+}
+
+.player-cover {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  box-shadow: var(--shadow-lg);
+  flex-shrink: 0;
+}
+
+.player-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.player-book-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: #FFFFFF;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-chapter {
+  font-size: var(--font-size-xs);
+  color: rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Tabs de capítulos ─────────────────────────────────────────────────── */
+.player-chapters {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-6);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  flex-shrink: 0;
+}
+
+.player-chapters::-webkit-scrollbar {
+  display: none;
+}
+
+.player-chapter-tab {
+  flex-shrink: 0;
+  padding: var(--space-2) var(--space-4);
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  border-radius: var(--radius-2xl);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  white-space: nowrap;
+  font-family: var(--font-family);
+  min-height: 36px;
+}
+
+.player-chapter-tab:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.player-chapter-tab.active {
+  background: rgba(255, 255, 255, 0.2);
+  color: #FFFFFF;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LYRICS — Zona de texto karaoke
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.lyrics-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  padding: var(--space-8) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+
+  /* Máscaras de desvanecimiento arriba y abajo */
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 15%,
+    black 85%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 15%,
+    black 85%,
+    transparent 100%
+  );
+}
+
+.lyrics-container::-webkit-scrollbar {
+  display: none;
+}
+
+/* Cada línea / oración */
+.lyric-line {
+  text-align: center;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-gray-future);
+  opacity: 0.4;
+  padding: var(--space-3) 0;
+  transition:
+    font-size 0.3s ease,
+    font-weight 0.3s ease,
+    color 0.3s ease,
+    opacity 0.3s ease,
+    transform 0.3s ease;
+  line-height: var(--line-height-relaxed);
+  cursor: pointer;
+  user-select: none;
+}
+
+.lyric-line:hover {
+  opacity: 0.6;
+}
+
+/* Línea activa */
+.lyric-line.active {
+  font-size: 22px;
+  font-weight: var(--font-weight-semibold);
+  color: #FFFFFF;
+  opacity: 1;
+  transform: scale(1);
+  text-shadow: 0 0 30px rgba(255, 255, 255, 0.15);
+}
+
+/* Líneas ya leídas */
+.lyric-line.past {
+  font-size: var(--font-size-base);
+  color: var(--color-gray-past);
+  opacity: 0.5;
+}
+
+/* Líneas futuras */
+.lyric-line.future {
+  font-size: var(--font-size-base);
+  color: var(--color-gray-future);
+  opacity: 0.4;
+}
+
+/* ── Palabras individuales ─────────────────────────────────────────────── */
+.word {
+  display: inline;
+  transition: color 0.15s ease;
+}
+
+.word.active {
+  color: #FFFFFF;
+  animation: bounce-word 0.4s ease;
+}
+
+.word.past {
+  color: var(--color-gray-past);
+}
+
+/* ── Botón "Volver al en vivo" ─────────────────────────────────────────── */
+.player-live-btn {
+  position: absolute;
+  bottom: 180px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  padding: var(--space-2) var(--space-5);
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: var(--backdrop-blur);
+  -webkit-backdrop-filter: var(--backdrop-blur);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-2xl);
+  color: #FFFFFF;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  z-index: var(--z-sticky);
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--transition-base);
+  font-family: var(--font-family);
+  min-height: 36px;
+}
+
+.player-live-btn.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+.player-live-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.player-live-btn:active {
+  transform: translateX(-50%) scale(0.95);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   CONTROLES — Barra fija inferior
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.player-controls {
+  flex-shrink: 0;
+  background: var(--player-controls-bg);
+  backdrop-filter: var(--backdrop-blur-heavy);
+  -webkit-backdrop-filter: var(--backdrop-blur-heavy);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: var(--space-4) var(--space-6) var(--space-10);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Barra de progreso delgada */
+.player-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.player-progress-bar {
+  flex: 1;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+}
+
+.player-progress-bar:hover {
+  height: 5px;
+}
+
+.player-progress-fill {
+  height: 100%;
+  background: #FFFFFF;
+  border-radius: 2px;
+  transition: width 0.1s linear;
+  position: relative;
+}
+
+.player-progress-fill::after {
+  content: '';
+  position: absolute;
+  right: -5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: #FFFFFF;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.player-progress-bar:hover .player-progress-fill::after {
+  opacity: 1;
+}
+
+.player-time {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  font-variant-numeric: tabular-nums;
+  min-width: 36px;
+  flex-shrink: 0;
+}
+
+.player-time-current {
+  text-align: right;
+}
+
+.player-time-total {
+  text-align: left;
+}
+
+/* Botones de transporte */
+.player-transport {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+}
+
+/* Botones prev/next */
+.player-btn-skip {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  background: none;
+  border: none;
+  color: #FFFFFF;
+  font-size: var(--font-size-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.player-btn-skip:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.player-btn-skip:active {
+  transform: scale(0.9);
+}
+
+/* Botón play/pause central */
+.player-btn-play {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-full);
+  background: #FFFFFF;
+  border: none;
+  color: var(--player-bg-fallback);
+  font-size: var(--font-size-xl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.player-btn-play:hover {
+  transform: scale(1.06);
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.4);
+}
+
+.player-btn-play:active {
+  transform: scale(0.94);
+}
+
+/* Controles secundarios */
+.player-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.player-btn-secondary {
+  width: var(--touch-min);
+  height: var(--touch-min);
+  border-radius: var(--radius-full);
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: var(--font-size-base);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.player-btn-secondary:hover {
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.player-speed {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: rgba(255, 255, 255, 0.5);
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  font-family: var(--font-family);
+  min-width: 44px;
+  min-height: 32px;
+  text-align: center;
+}
+
+.player-speed:hover {
+  color: rgba(255, 255, 255, 0.8);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ANIMACIONES DE TRANSICIÓN ENTRE LÍNEAS
+   ══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes lyric-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.lyric-line.entering {
+  animation: lyric-slide-up 0.3s ease forwards;
+}
+
+@keyframes lyric-fade-active {
+  from {
+    opacity: 0.4;
+    font-size: var(--font-size-base);
+  }
+  to {
+    opacity: 1;
+    font-size: 22px;
+  }
+}
+
+.lyric-line.becoming-active {
+  animation: lyric-fade-active 0.3s ease forwards;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE
+   ══════════════════════════════════════════════════════════════════════════ */
+
+@media (min-width: 480px) {
+  .lyric-line.active {
+    font-size: 26px;
+  }
+
+  .player-controls {
+    max-width: 480px;
+    margin: 0 auto;
+    width: 100%;
+  }
+}
+
+@media (min-width: 768px) {
+  .player-header {
+    max-width: 600px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .player-chapters {
+    max-width: 600px;
+    margin: 0 auto;
+    justify-content: center;
+  }
+
+  .lyrics-container {
+    max-width: 600px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .lyric-line.active {
+    font-size: 28px;
+  }
+
+  .player-btn-play {
+    width: 72px;
+    height: 72px;
+    font-size: var(--font-size-2xl);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ACCESIBILIDAD: MOVIMIENTO REDUCIDO
+   ══════════════════════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .lyrics-container {
+    scroll-behavior: auto;
+  }
+
+  .lyric-line {
+    transition: none;
+  }
+
+  .lyric-line.entering,
+  .lyric-line.becoming-active {
+    animation: none;
+  }
+
+  .word.active {
+    animation: none;
+  }
+
+  .player-progress-fill {
+    transition: none;
+  }
+
+  .player-live-btn {
+    transition: none;
+  }
+}

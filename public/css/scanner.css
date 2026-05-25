@@ -1,0 +1,387 @@
+/* ==========================================================================
+   LibroVoz — Scanner (Dark Theme)
+   Pantalla de escaneo con cámara
+   ========================================================================== */
+
+/* ── Contenedor principal ──────────────────────────────────────────────── */
+.scanner {
+  position: fixed;
+  inset: 0;
+  background: var(--color-dark-bg);
+  z-index: var(--z-base);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Video cámara full-screen ──────────────────────────────────────────── */
+.scanner-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+}
+
+.scanner-video-mirror {
+  transform: scaleX(-1);
+}
+
+/* ── Barra superior flotante translúcida ───────────────────────────────── */
+.scanner-topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-12) var(--space-6) var(--space-4);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.6) 0%, transparent 100%);
+}
+
+.scanner-topbar-left,
+.scanner-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.scanner-topbar-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* Indicador de fase */
+.scanner-phase {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: var(--backdrop-blur);
+  -webkit-backdrop-filter: var(--backdrop-blur);
+  border-radius: var(--radius-2xl);
+  color: #FFFFFF;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.scanner-phase-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-success);
+  animation: pulse-gentle 2s ease-in-out infinite;
+}
+
+/* Botones flotantes translúcidos */
+.scanner-btn {
+  width: var(--touch-min);
+  height: var(--touch-min);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: var(--backdrop-blur);
+  -webkit-backdrop-filter: var(--backdrop-blur);
+  border: none;
+  color: #FFFFFF;
+  font-size: var(--font-size-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.scanner-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.scanner-btn:active {
+  transform: scale(0.92);
+}
+
+/* ── Área central (guía de encuadre) ───────────────────────────────────── */
+.scanner-guide {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 85%;
+  max-width: 340px;
+  aspect-ratio: 3 / 4;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.scanner-guide-corner {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-color: rgba(255, 255, 255, 0.7);
+  border-style: solid;
+  border-width: 0;
+}
+
+.scanner-guide-corner--tl {
+  top: 0;
+  left: 0;
+  border-top-width: 3px;
+  border-left-width: 3px;
+  border-top-left-radius: var(--radius-sm);
+}
+
+.scanner-guide-corner--tr {
+  top: 0;
+  right: 0;
+  border-top-width: 3px;
+  border-right-width: 3px;
+  border-top-right-radius: var(--radius-sm);
+}
+
+.scanner-guide-corner--bl {
+  bottom: 0;
+  left: 0;
+  border-bottom-width: 3px;
+  border-left-width: 3px;
+  border-bottom-left-radius: var(--radius-sm);
+}
+
+.scanner-guide-corner--br {
+  bottom: 0;
+  right: 0;
+  border-bottom-width: 3px;
+  border-right-width: 3px;
+  border-bottom-right-radius: var(--radius-sm);
+}
+
+.scanner-guide-label {
+  position: absolute;
+  bottom: -32px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+/* ── Flash verde al capturar ───────────────────────────────────────────── */
+@keyframes capture-flash {
+  0% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.capture-flash {
+  position: absolute;
+  inset: 0;
+  background: var(--color-success);
+  z-index: 20;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.capture-flash.active {
+  animation: capture-flash 0.3s ease-out forwards;
+}
+
+/* ── Barra inferior ────────────────────────────────────────────────────── */
+.scanner-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: var(--space-10);
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
+}
+
+/* Tira de thumbnails */
+.scanner-thumbnails {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scanner-thumbnails::-webkit-scrollbar {
+  display: none;
+}
+
+.scanner-thumb {
+  flex: 0 0 48px;
+  width: 48px;
+  height: 64px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  scroll-snap-align: center;
+  border: 2px solid transparent;
+  opacity: 0.7;
+  transition: all var(--transition-base);
+  cursor: pointer;
+}
+
+.scanner-thumb.active {
+  border-color: #FFFFFF;
+  opacity: 1;
+}
+
+.scanner-thumb:hover {
+  opacity: 1;
+}
+
+/* Controles de captura */
+.scanner-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-10);
+  padding: var(--space-4) 0;
+  width: 100%;
+}
+
+/* Contador de páginas */
+.scanner-count {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: #FFFFFF;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.scanner-count .badge {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: var(--backdrop-blur);
+  -webkit-backdrop-filter: var(--backdrop-blur);
+}
+
+/* Botón "Listo" / confirmar */
+.scanner-done {
+  padding: var(--space-3) var(--space-6);
+  background: var(--color-accent);
+  color: #FFFFFF;
+  border: none;
+  border-radius: var(--radius-2xl);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  min-height: var(--touch-min);
+  font-family: var(--font-family);
+}
+
+.scanner-done:hover {
+  background: var(--color-accent-hover);
+}
+
+.scanner-done:active {
+  transform: scale(0.95);
+}
+
+.scanner-done:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* ── Animación de captura del botón ────────────────────────────────────── */
+@keyframes capture-pulse {
+  0% {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), 0 0 0 12px rgba(255, 255, 255, 0.15);
+  }
+  100% {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.btn-capture.capturing {
+  animation: capture-pulse 1.5s ease-in-out infinite;
+}
+
+/* ── Pantalla de revisión de imagen ────────────────────────────────────── */
+.scanner-review {
+  position: absolute;
+  inset: 0;
+  background: var(--color-dark-bg);
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--transition-base);
+}
+
+.scanner-review.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.scanner-review-image {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+}
+
+.scanner-review-image img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+}
+
+.scanner-review-actions {
+  display: flex;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  justify-content: center;
+}
+
+/* ── Responsive ────────────────────────────────────────────────────────── */
+@media (min-width: 768px) {
+  .scanner-guide {
+    max-width: 400px;
+  }
+
+  .scanner-thumb {
+    flex: 0 0 56px;
+    width: 56px;
+    height: 76px;
+  }
+}
+
+/* ── Movimiento reducido ───────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .capture-flash.active {
+    animation: none;
+    opacity: 0;
+  }
+
+  .btn-capture.capturing {
+    animation: none;
+  }
+
+  .scanner-phase-dot {
+    animation: none;
+  }
+}

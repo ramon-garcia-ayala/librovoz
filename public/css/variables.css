@@ -1,0 +1,106 @@
+/* ==========================================================================
+   LibroVoz — Design Tokens
+   Estética Apple minimalista, optimizada para personas mayores
+   ========================================================================== */
+
+:root {
+  /* ── Tipografía ──────────────────────────────────────────────────────── */
+  --font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+  --font-size-xs: 14px;
+  --font-size-sm: 16px;
+  --font-size-base: 18px;
+  --font-size-md: 20px;
+  --font-size-lg: 24px;
+  --font-size-xl: 28px;
+  --font-size-2xl: 34px;
+  --font-size-3xl: 40px;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --line-height-tight: 1.2;
+  --line-height-base: 1.5;
+  --line-height-relaxed: 1.7;
+
+  /* ── Colores ─────────────────────────────────────────────────────────── */
+  --color-bg: #FAFAFA;
+  --color-bg-secondary: #F2F2F7;
+  --color-bg-elevated: #FFFFFF;
+  --color-text: #1D1D1F;
+  --color-text-secondary: #3A3A3C;
+  --color-text-tertiary: #636366;
+  --color-accent: #007AFF;
+  --color-accent-hover: #0066D6;
+  --color-accent-active: #004EA2;
+  --color-success: #34C759;
+  --color-success-bg: rgba(52, 199, 89, 0.12);
+  --color-warning: #FF9500;
+  --color-error: #FF3B30;
+  --color-gray-past: #8E8E93;
+  --color-gray-future: #636366;
+  --color-border: rgba(0, 0, 0, 0.08);
+  --color-border-strong: rgba(0, 0, 0, 0.15);
+
+  /* ── Colores — Modo oscuro (player/scanner) ──────────────────────────── */
+  --color-dark-bg: #000000;
+  --color-dark-bg-elevated: #1C1C1E;
+  --color-dark-bg-secondary: #2C2C2E;
+  --color-dark-text: #FFFFFF;
+  --color-dark-text-secondary: rgba(255, 255, 255, 0.7);
+  --color-dark-text-tertiary: rgba(255, 255, 255, 0.4);
+  --color-dark-border: rgba(255, 255, 255, 0.1);
+
+  /* ── Player ──────────────────────────────────────────────────────────── */
+  --player-bg: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  --player-bg-fallback: #1a1a2e;
+  --player-controls-bg: rgba(0, 0, 0, 0.6);
+
+  /* ── Bordes redondeados ──────────────────────────────────────────────── */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-full: 50%;
+
+  /* ── Sombras ─────────────────────────────────────────────────────────── */
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 4px 24px rgba(0, 0, 0, 0.12);
+  --shadow-xl: 0 8px 40px rgba(0, 0, 0, 0.16);
+  --shadow-glow: 0 0 20px rgba(0, 122, 255, 0.3);
+
+  /* ── Espaciado (escala 4px) ──────────────────────────────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ── Transiciones ────────────────────────────────────────────────────── */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.3s ease;
+  --transition-slow: 0.5s ease;
+  --transition-spring: 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ── Touch targets ───────────────────────────────────────────────────── */
+  --touch-min: 48px;
+  --touch-comfortable: 56px;
+
+  /* ── Z-index ─────────────────────────────────────────────────────────── */
+  --z-base: 1;
+  --z-sticky: 10;
+  --z-overlay: 100;
+  --z-modal: 200;
+  --z-toast: 300;
+  --z-max: 999;
+
+  /* ── Backdrop ────────────────────────────────────────────────────────── */
+  --backdrop-blur: blur(20px);
+  --backdrop-blur-heavy: blur(40px);
+}

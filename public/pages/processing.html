@@ -1,0 +1,47 @@
+<div class="processing">
+  <!-- Info del libro -->
+  <div class="processing-header">
+    <div class="processing-cover" id="processing-cover"></div>
+    <div class="processing-info">
+      <h2 id="processing-title">Procesando libro...</h2>
+      <p id="processing-author"></p>
+    </div>
+  </div>
+
+  <!-- Progreso -->
+  <div class="processing-progress" id="processing-progress">
+    <p class="processing-status" id="processing-status">Preparando...</p>
+    <div class="progress-bar">
+      <div class="progress-fill" id="processing-fill" style="width:0%"></div>
+    </div>
+    <p class="processing-detail" id="processing-detail"></p>
+  </div>
+
+  <!-- Selección de modo (oculto hasta que termine OCR) -->
+  <div class="processing-modes" id="processing-modes" style="display:none">
+    <h3>¿Cómo quieres escucharlo?</h3>
+    <div class="processing-mode-grid">
+      <div class="card processing-mode-card" onclick="Processor.selectMode('literal')">
+        <svg viewBox="0 0 48 48" width="48" height="48" fill="none">
+          <rect x="8" y="4" width="32" height="40" rx="3" fill="#007AFF" opacity="0.15"/>
+          <line x1="14" y1="14" x2="34" y2="14" stroke="#007AFF" stroke-width="2"/>
+          <line x1="14" y1="20" x2="34" y2="20" stroke="#007AFF" stroke-width="2" opacity="0.7"/>
+          <line x1="14" y1="26" x2="30" y2="26" stroke="#007AFF" stroke-width="2" opacity="0.5"/>
+          <line x1="14" y1="32" x2="32" y2="32" stroke="#007AFF" stroke-width="2" opacity="0.3"/>
+        </svg>
+        <h4>Texto completo</h4>
+        <p>Escucha cada palabra tal cual está escrita</p>
+      </div>
+      <div class="card processing-mode-card" onclick="Processor.selectMode('summary')">
+        <svg viewBox="0 0 48 48" width="48" height="48" fill="none">
+          <rect x="8" y="4" width="32" height="40" rx="3" fill="#FF9500" opacity="0.15"/>
+          <path d="M16 16h16M16 22h12M16 28h14" stroke="#FF9500" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="34" cy="34" r="8" fill="#FF9500" opacity="0.2"/>
+          <path d="M32 34l2 2 4-4" stroke="#FF9500" stroke-width="2" stroke-linecap="round" fill="none"/>
+        </svg>
+        <h4>Resumen por capítulo</h4>
+        <p>Versión condensada de cada capítulo</p>
+      </div>
+    </div>
+  </div>
+</div>
