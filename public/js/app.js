@@ -20,7 +20,9 @@ const App = {
   currentScreen: null,
 
   screens: {
-    landing: { partial: null, init: null },
+    landing: { partial: '/pages/landing.html', init: () => {
+      if (typeof Microcopy !== 'undefined') Microcopy.render('landing-ambient', 'welcome');
+    }},
     library: { partial: '/pages/library.html', init: () => Library.init() },
     tutorial: { partial: '/pages/tutorial.html', init: () => Tutorial.init() },
     scanner: { partial: '/pages/scanner.html', init: () => Scanner.init() },
