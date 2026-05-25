@@ -507,14 +507,22 @@ const Player = {
   scrollActiveIntoView() {
     const activeLine = document.querySelector('.lyric-line.active');
     if (!activeLine) return;
-    const lyricsContainer = document.getElementById('player-lyrics');
-    if (!lyricsContainer) return;
-    const lineTop = activeLine.offsetTop;
-    const containerHeight = lyricsContainer.clientHeight;
-    lyricsContainer.scrollTo({
-      top: lineTop - containerHeight / 3,
-      behavior: 'smooth'
-    });
+    // scrollIntoView nativo: respeta scroll-padding del container y scroll-margin
+    // del elemento. Funciona bien en edges (primeras/últimas líneas no se atascan).
+    try {
+      activeLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } catch {
+      // Fallback para browsers viejos
+      const lyricsContainer = document.getElementById('player-lyrics');
+      if (lyricsContainer) {
+        const lineTop = activeLine.offsetTop;
+        const containerHeight = lyricsContainer.clientHeight;
+        lyricsContainer.scrollTo({
+          top: lineTop - containerHeight / 3,
+          behavior: 'smooth'
+        });
+      }
+    }
   },
 
   // Timer que estima posición si onboundary no dispara (común en Android)

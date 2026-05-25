@@ -16,9 +16,9 @@
   overflow: hidden;
   z-index: var(--z-base);
 
-  /* Alturas dinámicas para que lyrics sepa cuánto padding dejar */
+  /* Alturas dinámicas para que el pill 'volver al en vivo' sepa cuánto subir */
   --header-h: calc(64px + env(safe-area-inset-top));
-  --controls-h: calc(168px + env(safe-area-inset-bottom));
+  --controls-h: calc(156px + env(safe-area-inset-bottom));
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -180,20 +180,24 @@
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   min-height: 0;
+  width: 100%;
+  /* scroll-padding ayuda al scrollIntoView a centrar la línea activa */
+  scroll-padding-top: 30%;
+  scroll-padding-bottom: 30%;
 
-  /* Fade superior e inferior */
+  /* Fade sutil al inicio/fin (no agresivo para no cortar texto en celulares pequeños) */
   mask-image: linear-gradient(
     to bottom,
     transparent 0%,
-    black 10%,
-    black 90%,
+    black 6%,
+    black 94%,
     transparent 100%
   );
   -webkit-mask-image: linear-gradient(
     to bottom,
     transparent 0%,
-    black 10%,
-    black 90%,
+    black 6%,
+    black 94%,
     transparent 100%
   );
 }
@@ -202,15 +206,19 @@
   display: none;
 }
 
-/* Inner: padding generoso arriba/abajo para garantizar que la línea activa
-   (que el JS centra en lineTop - containerHeight/3) NUNCA quede tapada por
-   header, tabs, controls o pill "Volver al en vivo". */
+/* Inner: padding razonable (no 75vh). El JS usa scrollIntoView que respeta
+   scroll-padding del container para centrar la línea activa correctamente. */
 .lyrics-inner {
-  padding: 35vh var(--space-6) 40vh;
+  padding: var(--space-6) var(--space-5) var(--space-8);
   max-width: 640px;
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
+  text-align: center;
+  /* Defensa: forzar centrado real del bloque */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 /* ── Cada línea / oración ──────────────────────────────────────────────── */
@@ -220,17 +228,24 @@
   font-weight: var(--font-weight-regular);
   color: var(--color-text-secondary);
   opacity: 0.75;
-  padding: var(--space-3) 0;
+  padding: var(--space-3) var(--space-2);
   margin: var(--space-2) 0;
   line-height: 1.6;
   cursor: pointer;
   user-select: none;
+  width: 100%;
+  box-sizing: border-box;
+  /* Respeta el offset que el scroll quiere darle (centro) */
+  scroll-margin-top: 30vh;
+  scroll-margin-bottom: 30vh;
   transition:
     font-size var(--dur-base) var(--ease-glass),
     font-weight var(--dur-base) var(--ease-glass),
     color var(--dur-base) var(--ease-glass),
     opacity var(--dur-base) var(--ease-glass),
     transform var(--dur-base) var(--ease-glass);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .lyric-line:hover {
@@ -280,7 +295,10 @@
 /* ── Figura (cita / descripción inline) ────────────────────────────────── */
 .lyric-line.lyric-figure {
   display: block;
-  margin: var(--space-5) auto;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: var(--space-5);
+  margin-bottom: var(--space-5);
   padding: var(--space-4) var(--space-5);
   background: var(--glass-bg-faint);
   backdrop-filter: var(--glass-blur);
@@ -293,6 +311,8 @@
   color: var(--color-text-secondary);
   text-align: left;
   max-width: 90%;
+  width: 90%;
+  box-sizing: border-box;
 }
 
 .lyric-line.lyric-figure.active {
@@ -424,12 +444,20 @@
   opacity: 1;
 }
 
-/* Transport */
+/* Transport: 5 botones, gap responsive (compacto en celulares chicos) */
 .player-transport {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-5);
+  gap: var(--space-3);
+  flex-wrap: nowrap;
+}
+
+@media (min-width: 380px) {
+  .player-transport { gap: var(--space-4); }
+}
+@media (min-width: 480px) {
+  .player-transport { gap: var(--space-5); }
 }
 
 .player-btn-skip {
@@ -505,14 +533,23 @@
   transform: scale(0.96);
 }
 
-/* Secondary row: chapter count + speed */
+/* Secondary row: chapter count + voice + speed (3 elementos, wrap si necesario) */
 .player-secondary {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-2);
   padding: 0 var(--space-1);
   min-height: 32px;
+  flex-wrap: nowrap;
+}
+
+.player-secondary .player-chapter-count {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .player-chapter-count {
