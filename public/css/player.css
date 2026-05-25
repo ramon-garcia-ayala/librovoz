@@ -1,71 +1,98 @@
 /* ==========================================================================
-   LibroVoz — Player (estilo Spotify Lyrics)
-   Reproductor de audiolibros con karaoke sincronizado
+   LibroVoz — Player (Calm Glass)
+   Layout: header glass / tabs scroll / lyrics (zona máxima) / controls glass
+   Garantía: el texto activo nunca queda tapado por overlays.
    ========================================================================== */
 
-/* ── Contenedor principal ──────────────────────────────────────────────── */
+/* ── Contenedor raíz: grid de 4 filas — header / tabs / lyrics(1fr) / controls ── */
 .player {
   position: fixed;
   inset: 0;
   background: var(--player-bg-fallback);
   background: var(--player-bg);
   color: var(--color-text);
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
   overflow: hidden;
   z-index: var(--z-base);
+
+  /* Alturas dinámicas para que lyrics sepa cuánto padding dejar */
+  --header-h: calc(64px + env(safe-area-inset-top));
+  --controls-h: calc(168px + env(safe-area-inset-bottom));
 }
 
-/* ── Cabecera: portada + info ──────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════════
+   HEADER — glass compacto con back, cover, info, chat
+   ══════════════════════════════════════════════════════════════════════════ */
 .player-header {
+  position: relative;
+  z-index: var(--z-sticky);
   display: flex;
   align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-12) var(--space-6) var(--space-4);
-  padding-top: max(var(--space-12), calc(env(safe-area-inset-top) + var(--space-4)));
-  flex-shrink: 0;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  padding-top: max(var(--space-3), calc(env(safe-area-inset-top) + var(--space-2)));
+
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-bottom: 1px solid var(--glass-border);
+  box-shadow: var(--glass-inset);
 }
 
-.player-back {
-  width: var(--touch-min);
-  height: var(--touch-min);
+.player-back,
+.player-chat-btn {
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: none;
+  background: transparent;
   border: none;
   color: var(--color-text-secondary);
-  font-size: var(--font-size-lg);
   cursor: pointer;
   border-radius: var(--radius-full);
-  transition: all var(--transition-base);
+  transition: background var(--dur-base) var(--ease-glass),
+              color var(--dur-base) var(--ease-glass),
+              transform var(--dur-base) var(--ease-glass);
   -webkit-tap-highlight-color: transparent;
   flex-shrink: 0;
 }
 
-.player-back:hover {
-  background: rgba(0, 0, 0, 0.05);
-  color: var(--color-text);
+.player-back:hover,
+.player-chat-btn:hover {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.player-back:active,
+.player-chat-btn:active {
+  transform: scale(0.94);
 }
 
 .player-cover {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-sm);
   overflow: hidden;
-  box-shadow: var(--shadow-lg);
   flex-shrink: 0;
+  background: var(--color-bg-secondary);
+  box-shadow: var(--shadow-sm);
 }
 
 .player-cover img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
 }
 
 .player-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .player-book-title {
@@ -75,6 +102,8 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin: 0;
+  letter-spacing: var(--tracking-base);
 }
 
 .player-chapter {
@@ -83,17 +112,25 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin: 0;
 }
 
-/* ── Tabs de capítulos ─────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════════
+   TABS DE CAPÍTULOS — fila horizontal scrolleable
+   ══════════════════════════════════════════════════════════════════════════ */
 .player-chapters {
+  position: relative;
+  z-index: var(--z-sticky);
   display: flex;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-6);
+  padding: var(--space-3) var(--space-5);
   overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
-  flex-shrink: 0;
+  background: linear-gradient(180deg,
+    rgba(var(--text-base-rgb), 0.02) 0%,
+    transparent 100%);
 }
 
 .player-chapters::-webkit-scrollbar {
@@ -103,59 +140,60 @@
 .player-chapter-tab {
   flex-shrink: 0;
   padding: var(--space-2) var(--space-4);
-  background: rgba(0, 0, 0, 0.04);
-  border: none;
-  border-radius: var(--radius-2xl);
-  color: var(--color-text-tertiary);
+  background: var(--glass-bg-faint);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-full);
+  color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
   cursor: pointer;
-  transition: all var(--transition-base);
+  transition: background var(--dur-base) var(--ease-glass),
+              color var(--dur-base) var(--ease-glass),
+              border-color var(--dur-base) var(--ease-glass);
   white-space: nowrap;
   font-family: var(--font-family);
   min-height: 36px;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .player-chapter-tab:hover {
-  background: rgba(0, 0, 0, 0.08);
-  color: var(--color-text-secondary);
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
 }
 
 .player-chapter-tab.active {
-  background: var(--color-accent);
-  color: #FFFFFF;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  border-color: rgba(var(--accent-rgb), 0.35);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   LYRICS — Zona de texto karaoke
+   LYRICS — Zona máxima entre header y controls. Texto activo nunca tapado.
    ══════════════════════════════════════════════════════════════════════════ */
-
 .lyrics-container {
-  flex: 1;
+  position: relative;
   overflow-y: auto;
   overflow-x: hidden;
   scroll-behavior: smooth;
-  padding: var(--space-8) var(--space-6);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-height: 0;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  min-height: 0;
 
-  /* Máscaras de desvanecimiento arriba y abajo */
+  /* Fade superior e inferior */
   mask-image: linear-gradient(
     to bottom,
     transparent 0%,
-    black 15%,
-    black 85%,
+    black 10%,
+    black 90%,
     transparent 100%
   );
   -webkit-mask-image: linear-gradient(
     to bottom,
     transparent 0%,
-    black 15%,
-    black 85%,
+    black 10%,
+    black 90%,
     transparent 100%
   );
 }
@@ -164,103 +202,155 @@
   display: none;
 }
 
-/* Cada línea / oración */
+/* Inner: padding generoso arriba/abajo para garantizar que la línea activa
+   (que el JS centra en lineTop - containerHeight/3) NUNCA quede tapada por
+   header, tabs, controls o pill "Volver al en vivo". */
+.lyrics-inner {
+  padding: 35vh var(--space-6) 40vh;
+  max-width: 640px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ── Cada línea / oración ──────────────────────────────────────────────── */
 .lyric-line {
   text-align: center;
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-regular);
   color: var(--color-text-secondary);
-  opacity: 1;
+  opacity: 0.75;
   padding: var(--space-3) 0;
-  transition:
-    font-size 0.3s ease,
-    font-weight 0.3s ease,
-    color 0.3s ease,
-    opacity 0.3s ease,
-    transform 0.3s ease;
-  line-height: var(--line-height-relaxed);
+  margin: var(--space-2) 0;
+  line-height: 1.6;
   cursor: pointer;
   user-select: none;
+  transition:
+    font-size var(--dur-base) var(--ease-glass),
+    font-weight var(--dur-base) var(--ease-glass),
+    color var(--dur-base) var(--ease-glass),
+    opacity var(--dur-base) var(--ease-glass),
+    transform var(--dur-base) var(--ease-glass);
 }
 
 .lyric-line:hover {
-  opacity: 0.7;
-}
-
-/* Línea activa */
-.lyric-line.active {
-  font-size: 24px;
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
   opacity: 1;
-  transform: scale(1);
 }
 
-/* Líneas ya leídas */
-.lyric-line.past {
-  font-size: var(--font-size-base);
-  color: var(--color-text-secondary);
-  opacity: 0.55;
-}
-
-/* Líneas futuras */
 .lyric-line.future {
-  font-size: var(--font-size-base);
   color: var(--color-text-secondary);
   opacity: 0.75;
 }
 
-/* ── Palabras individuales ─────────────────────────────────────────────── */
+.lyric-line.past {
+  color: var(--color-text-secondary);
+  opacity: 0.55;
+}
+
+.lyric-line.active {
+  font-size: 26px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  opacity: 1;
+  letter-spacing: var(--tracking-tight);
+}
+
+/* ── Palabras ──────────────────────────────────────────────────────────── */
 .word {
   display: inline;
-  transition: color 0.15s ease;
+  transition: color var(--dur-base) var(--ease-glass),
+              background var(--dur-base) var(--ease-glass);
+  border-radius: 6px;
+  padding: 1px 2px;
+}
+
+.word.past {
+  color: var(--color-text);
+  opacity: 0.7;
 }
 
 .word.active {
   color: var(--color-accent);
   font-weight: var(--font-weight-semibold);
   background: var(--color-accent-soft);
-  border-radius: 6px;
-  padding: 0 4px;
+  padding: 1px 6px;
   margin: 0 -2px;
 }
 
-.word.past {
-  color: var(--color-text);
-  opacity: 0.65;
+/* ── Figura (cita / descripción inline) ────────────────────────────────── */
+.lyric-line.lyric-figure {
+  display: block;
+  margin: var(--space-5) auto;
+  padding: var(--space-4) var(--space-5);
+  background: var(--glass-bg-faint);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  font-style: italic;
+  font-size: 0.94em;
+  color: var(--color-text-secondary);
+  text-align: left;
+  max-width: 90%;
 }
 
-/* ── Botón "Volver al en vivo" ─────────────────────────────────────────── */
+.lyric-line.lyric-figure.active {
+  background: var(--color-accent-soft);
+  color: var(--color-text);
+  font-size: 1em;
+}
+
+.lyric-line.lyric-figure .word.active {
+  color: var(--color-accent);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   "VOLVER AL EN VIVO" — pill anclado JUSTO encima de los controls
+   ══════════════════════════════════════════════════════════════════════════ */
 .player-live-btn {
   position: absolute;
-  bottom: 180px;
   left: 50%;
-  transform: translateX(-50%) translateY(20px);
+  bottom: calc(var(--controls-h) + var(--space-3));
+  transform: translateX(-50%) translateY(8px);
   padding: var(--space-2) var(--space-5);
-  background: var(--color-bg-elevated);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-2xl);
+
+  background: var(--glass-bg-strong);
+  backdrop-filter: var(--glass-blur-heavy);
+  -webkit-backdrop-filter: var(--glass-blur-heavy);
+  border: 1px solid var(--glass-border-strong);
+  border-radius: var(--radius-full);
+
   color: var(--color-accent);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
+  font-family: var(--font-family);
+
   cursor: pointer;
   z-index: var(--z-sticky);
   opacity: 0;
   visibility: hidden;
-  transition: all var(--transition-base);
-  font-family: var(--font-family);
+  pointer-events: none;
+
   min-height: 36px;
   box-shadow: var(--shadow-md);
+  -webkit-tap-highlight-color: transparent;
+
+  transition:
+    opacity var(--dur-base) var(--ease-glass),
+    transform var(--dur-base) var(--ease-glass),
+    visibility var(--dur-base) var(--ease-glass);
 }
 
 .player-live-btn.visible {
   opacity: 1;
   visibility: visible;
+  pointer-events: auto;
   transform: translateX(-50%) translateY(0);
 }
 
 .player-live-btn:hover {
-  background: var(--color-bg-secondary);
+  background: var(--color-accent-soft);
 }
 
 .player-live-btn:active {
@@ -268,27 +358,29 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   CONTROLES — Barra fija inferior
+   CONTROLES — barra glass abajo
    ══════════════════════════════════════════════════════════════════════════ */
-
 .player-controls {
-  flex-shrink: 0;
+  position: relative;
+  z-index: var(--z-sticky);
   background: var(--player-controls-bg);
-  backdrop-filter: var(--backdrop-blur-heavy);
-  -webkit-backdrop-filter: var(--backdrop-blur-heavy);
-  border-top: 1px solid var(--color-border);
-  padding: var(--space-4) var(--space-6) var(--space-10);
-  padding-bottom: max(var(--space-10), calc(env(safe-area-inset-bottom) + var(--space-4)));
+  backdrop-filter: var(--glass-blur-heavy);
+  -webkit-backdrop-filter: var(--glass-blur-heavy);
+  border-top: 1px solid var(--glass-border);
+  box-shadow: 0 -8px 32px rgba(24, 28, 38, 0.04), var(--glass-inset);
+
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  padding-bottom: max(var(--space-5), calc(env(safe-area-inset-bottom) + var(--space-3)));
+
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
 }
 
-/* Barra de progreso delgada */
+/* Progress */
 .player-progress {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
 }
 
 .player-progress-bar {
@@ -299,6 +391,7 @@
   overflow: hidden;
   cursor: pointer;
   position: relative;
+  transition: height var(--dur-base) var(--ease-glass);
 }
 
 .player-progress-bar:hover {
@@ -308,7 +401,7 @@
 .player-progress-fill {
   height: 100%;
   background: var(--color-accent);
-  border-radius: 2px;
+  border-radius: var(--radius-full);
   transition: width 0.1s linear;
   position: relative;
 }
@@ -324,67 +417,54 @@
   border-radius: var(--radius-full);
   background: var(--color-accent);
   opacity: 0;
-  transition: opacity var(--transition-fast);
+  transition: opacity var(--dur-base) var(--ease-glass);
 }
 
 .player-progress-bar:hover .player-progress-fill::after {
   opacity: 1;
 }
 
-.player-time {
-  font-size: 12px;
-  color: var(--color-text-tertiary);
-  font-variant-numeric: tabular-nums;
-  min-width: 36px;
-  flex-shrink: 0;
-}
-
-.player-time-current {
-  text-align: right;
-}
-
-.player-time-total {
-  text-align: left;
-}
-
-/* Botones de transporte */
+/* Transport */
 .player-transport {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-8);
+  gap: var(--space-5);
 }
 
-/* Botones prev/next */
 .player-btn-skip {
   width: 44px;
   height: 44px;
   border-radius: var(--radius-full);
-  background: none;
+  background: transparent;
   border: none;
   color: var(--color-text-secondary);
-  font-size: var(--font-size-lg);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all var(--transition-base);
   -webkit-tap-highlight-color: transparent;
+  transition: background var(--dur-base) var(--ease-glass),
+              color var(--dur-base) var(--ease-glass),
+              transform var(--dur-base) var(--ease-glass);
 }
 
 .player-btn-skip:hover {
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
 }
 
 .player-btn-skip:active {
-  transform: scale(0.9);
+  transform: scale(0.92);
 }
 
-/* Variante: botón de seek (atrás/adelante 10s) — un poco más prominente */
+.player-btn-chapter {
+  opacity: 0.7;
+}
+
 .player-btn-seek {
   width: 52px;
   height: 52px;
-  border-radius: var(--radius-full);
   background: var(--glass-bg);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
@@ -393,221 +473,125 @@
 }
 
 .player-btn-seek:active {
-  transform: scale(0.92);
   background: var(--color-accent-soft);
-  border-color: rgba(var(--accent-rgb), 0.4);
+  border-color: rgba(var(--accent-rgb), 0.35);
 }
 
-.player-btn-chapter {
-  opacity: 0.7;
-}
-
-/* Bloque de descripción de figura insertado en lyrics */
-.lyric-line.lyric-figure {
-  display: block;
-  margin: var(--space-4) 0;
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-accent-soft);
-  border-left: 3px solid var(--color-accent);
-  border-radius: var(--radius-md);
-  font-style: italic;
-  font-size: 0.94em;
-  color: var(--color-text-secondary);
-}
-
-.lyric-line.lyric-figure.active {
-  background: rgba(var(--accent-rgb), 0.18);
-  color: var(--color-text);
-}
-
-.lyric-line.lyric-figure .word.active {
-  color: var(--color-accent);
-}
-
-/* Botón play/pause central */
 .player-btn-play {
   width: 64px;
   height: 64px;
   border-radius: var(--radius-full);
-  background: rgba(var(--accent-rgb), 0.92);
-  border: 1px solid rgba(var(--accent-rgb), 0.6);
-  box-shadow: 0 8px 24px rgba(var(--accent-rgb), 0.25), var(--glass-inset);
+  background: var(--color-accent);
+  border: 1px solid rgba(var(--accent-rgb), 0.5);
   color: #FFFFFF;
-  font-size: var(--font-size-xl);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all var(--transition-base);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 8px 24px rgba(var(--accent-rgb), 0.28), var(--glass-inset);
+  transition: transform var(--dur-base) var(--ease-glass),
+              background var(--dur-base) var(--ease-glass),
+              box-shadow var(--dur-base) var(--ease-glass);
 }
 
 .player-btn-play:hover {
-  transform: scale(1.06);
-  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.2);
+  transform: scale(1.04);
+  background: var(--color-accent-hover);
+  box-shadow: 0 12px 32px rgba(var(--accent-rgb), 0.34), var(--glass-inset);
 }
 
 .player-btn-play:active {
-  transform: scale(0.94);
+  transform: scale(0.96);
 }
 
-/* Controles secundarios */
+/* Secondary row: chapter count + speed */
 .player-secondary {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0 var(--space-1);
+  min-height: 32px;
 }
 
-.player-btn-secondary {
-  width: var(--touch-min);
-  height: var(--touch-min);
-  border-radius: var(--radius-full);
-  background: none;
-  border: none;
+.player-chapter-count {
+  font-size: var(--font-size-xs);
   color: var(--color-text-tertiary);
-  font-size: var(--font-size-base);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all var(--transition-base);
-  -webkit-tap-highlight-color: transparent;
-}
-
-.player-btn-secondary:hover {
-  color: var(--color-text-secondary);
-  background: rgba(0, 0, 0, 0.05);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
 }
 
 .player-speed {
   font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-tertiary);
-  background: none;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
-  padding: var(--space-1) var(--space-2);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  background: var(--glass-bg-faint);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-full);
+  padding: var(--space-1) var(--space-4);
   cursor: pointer;
-  transition: all var(--transition-base);
   font-family: var(--font-family);
-  min-width: 44px;
+  min-width: 52px;
   min-height: 32px;
   text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--dur-base) var(--ease-glass),
+              color var(--dur-base) var(--ease-glass),
+              border-color var(--dur-base) var(--ease-glass);
 }
 
 .player-speed:hover {
-  color: var(--color-text-secondary);
-  border-color: var(--color-text-tertiary);
-}
-
-/* ══════════════════════════════════════════════════════════════════════════
-   ANIMACIONES DE TRANSICIÓN ENTRE LÍNEAS
-   ══════════════════════════════════════════════════════════════════════════ */
-
-@keyframes lyric-slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.lyric-line.entering {
-  animation: lyric-slide-up 0.3s ease forwards;
-}
-
-@keyframes lyric-fade-active {
-  from {
-    opacity: 0.5;
-    font-size: var(--font-size-base);
-  }
-  to {
-    opacity: 1;
-    font-size: 22px;
-  }
-}
-
-.lyric-line.becoming-active {
-  animation: lyric-fade-active 0.3s ease forwards;
+  color: var(--color-accent);
+  border-color: rgba(var(--accent-rgb), 0.35);
+  background: var(--color-accent-soft);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
    RESPONSIVE
    ══════════════════════════════════════════════════════════════════════════ */
-
 @media (min-width: 480px) {
-  .lyric-line.active {
-    font-size: 26px;
-  }
-
-  .player-controls {
-    max-width: 480px;
-    margin: 0 auto;
-    width: 100%;
-  }
+  .lyric-line.active { font-size: 28px; }
+  .player-controls { padding-left: var(--space-6); padding-right: var(--space-6); }
 }
 
 @media (min-width: 768px) {
-  .player-header {
-    max-width: 600px;
-    margin: 0 auto;
+  .player {
+    --controls-h: calc(180px + env(safe-area-inset-bottom));
+  }
+  .player-header,
+  .player-chapters,
+  .player-controls > * {
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
     width: 100%;
   }
-
-  .player-chapters {
-    max-width: 600px;
-    margin: 0 auto;
-    justify-content: center;
-  }
-
-  .lyrics-container {
-    max-width: 600px;
-    margin: 0 auto;
-    width: 100%;
-  }
-
-  .lyric-line.active {
-    font-size: 28px;
-  }
-
+  .player-chapters { justify-content: flex-start; }
+  .lyric-line.active { font-size: 30px; }
   .player-btn-play {
-    width: 72px;
-    height: 72px;
-    font-size: var(--font-size-2xl);
+    width: 68px;
+    height: 68px;
   }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   ACCESIBILIDAD: MOVIMIENTO REDUCIDO
+   ACCESIBILIDAD: motion reducido
    ══════════════════════════════════════════════════════════════════════════ */
-
 @media (prefers-reduced-motion: reduce) {
-  .lyrics-container {
-    scroll-behavior: auto;
-  }
-
-  .lyric-line {
-    transition: none;
-  }
-
-  .lyric-line.entering,
-  .lyric-line.becoming-active {
-    animation: none;
-  }
-
-  .word.active {
-    animation: none;
-  }
-
-  .player-progress-fill {
-    transition: none;
-  }
-
-  .player-live-btn {
-    transition: none;
-  }
+  .lyrics-container { scroll-behavior: auto; }
+  .lyric-line,
+  .word,
+  .player-live-btn,
+  .player-btn-skip,
+  .player-btn-play,
+  .player-chapter-tab,
+  .player-speed { transition: none; }
+  .player-progress-fill { transition: none; }
 }
