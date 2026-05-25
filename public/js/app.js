@@ -133,10 +133,9 @@ const App = {
   },
 
   updateNavBar(screen) {
-    // Se oculta en scanner (cámara fullscreen) y player (controls bottom
-    // chocarían con la nav). En player el back arriba va a /library
-    // y desde ahí accedes al resto.
-    const hideOn = ['scanner', 'player'];
+    // Se oculta SOLO en scanner (cámara fullscreen). En player se muestra arriba
+    // pero el .player se acorta para no taparse con los controls.
+    const hideOn = ['scanner'];
     const nav = document.getElementById('nav-bar');
 
     if (hideOn.includes(screen)) {

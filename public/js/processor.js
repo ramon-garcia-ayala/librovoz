@@ -1,12 +1,21 @@
 // LibroVoz - Pipeline de procesamiento (Tesseract local + Claude para chapters/cover)
 const Processor = {
+  // Set de bookIds con pipeline ACTIVO en este momento — previene doble cobro
+  _activePipelines: new Set(),
+
+  isPipelineActive(bookId) {
+    return this._activePipelines.has(bookId);
+  },
+
+  hasAnyActivePipeline() {
+    return this._activePipelines.size > 0;
+  },
+
   // ── Background pipeline (fire-and-forget desde Scanner) ──────────────
-  // Crea el book en DB, dispara el pipeline sin bloquear, retorna.
   async startBackground() {
     App.state._chapterHint = 'auto';
     App.state._autoMode = true;
 
-    // Captura los datos necesarios del estado actual (porque vamos a navegar)
     const snapshot = {
       coverImage: App.state.coverImage,
       coverThumbnail: App.state.coverThumbnail,
@@ -16,7 +25,6 @@ const Processor = {
       processingMode: 'literal'
     };
 
-    // Disparar pipeline en background (NO await — corre paralelo)
     this._runPipelineBg(snapshot).catch(err => {
       console.error('Pipeline background error:', err);
       App.showToast('Error procesando el libro', 'error');
@@ -36,6 +44,10 @@ const Processor = {
 
     // Save inicial: crea el libro como isProcessing=true
     await this._saveSnapshot({ phase: 'init', pageIndex: 0 });
+
+    // Marcar pipeline como activo para prevenir doble-procesamiento desde Library
+    const activeId = App.state._loadedBookId;
+    if (activeId) this._activePipelines.add(activeId);
 
     try {
       // 1. Portada + índice paralelos
@@ -138,6 +150,7 @@ const Processor = {
 
       const title = finalBook.title || 'tu libro';
       App.showToast(`"${title}" está listo`, 'info');
+      this._activePipelines.delete(finalBook.id);
     } catch (err) {
       console.error('Pipeline error:', err);
       // Marca el libro como con error pero conserva lo que tenga
@@ -153,14 +166,35 @@ const Processor = {
         } catch {}
       }
       App.showToast('Hubo un error procesando. Revisa biblioteca.', 'error');
+      if (activeId) this._activePipelines.delete(activeId);
     }
   },
 
   // Si viene de un libro en proceso (resume), saltar modal y continuar
   async init() {
-    // Si estamos reanudando un libro en proceso
     if (App.state._resumingBookId) {
-      const restored = await this._restoreFromBook(App.state._resumingBookId);
+      const resumeId = App.state._resumingBookId;
+
+      // GUARD: si ya hay un pipeline activo para este libro, NO arrancar otro
+      // Solo mostrar progreso en read-only y dejar que el bg termine
+      if (this.isPipelineActive(resumeId)) {
+        App.showToast('Este libro ya se está procesando, espera unos segundos', 'info');
+        this._renderReadOnlyProgress(resumeId);
+        return;
+      }
+
+      // GUARD: re-leer el libro de DB. Si ya está completo, ir a player.
+      try {
+        const book = await DB.get(resumeId);
+        if (book && !book.isProcessing) {
+          App.state._resumingBookId = null;
+          App.setLoadedBookId(book.id);
+          App.go('player');
+          return;
+        }
+      } catch {}
+
+      const restored = await this._restoreFromBook(resumeId);
       if (restored) {
         this._runPipeline();
         return;
@@ -272,6 +306,39 @@ const Processor = {
     } catch (err) {
       console.error('Error guardando snapshot:', err);
     }
+  },
+
+  // Render read-only del progreso (cuando el bg está corriendo y no queremos doble pipeline)
+  _renderReadOnlyProgress(bookId) {
+    const statusEl = document.getElementById('processing-status');
+    const detailEl = document.getElementById('processing-detail');
+    const fillEl = document.getElementById('processing-fill');
+    if (statusEl) statusEl.textContent = 'Procesando en segundo plano...';
+    if (detailEl) detailEl.textContent = 'Volverá a la biblioteca cuando termine';
+
+    // Poll del libro y actualizar barra; cuando termine, navegar a player
+    const timer = setInterval(async () => {
+      try {
+        const book = await DB.get(bookId);
+        if (!book) { clearInterval(timer); return; }
+        const total = (book._rawPages || []).length || 1;
+        const done = book.processingPageIndex || 0;
+        const pct = Math.min(95, Math.round((done / total) * 100));
+        if (fillEl) fillEl.style.width = pct + '%';
+        if (detailEl) detailEl.textContent = `${done} de ${total}`;
+        if (!book.isProcessing) {
+          clearInterval(timer);
+          App.state._resumingBookId = null;
+          App.setLoadedBookId(book.id);
+          if (fillEl) fillEl.style.width = '100%';
+          if (statusEl) statusEl.textContent = 'Listo';
+          setTimeout(() => App.go('player'), 600);
+        }
+      } catch (err) {
+        console.warn('Read-only poll error:', err);
+      }
+    }, 1000);
+    this._readOnlyPollTimer = timer;
   },
 
   setChapterHint(value) {

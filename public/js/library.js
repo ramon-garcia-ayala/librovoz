@@ -256,8 +256,10 @@ const Library = {
     App.state._isDraft = book.isDraft === true;
     App.state._savedSpeed = book.speed || 1;
 
-    // Si está en proceso (interrumpido) → reanudar pipeline
+    // Si está marcado como en proceso → ir a /processing
+    // (Processor.init decide si hay bg activo y muestra read-only, o reanuda)
     if (book.isProcessing === true) {
+      // Si el bg está corriendo, NO arranca nuevo pipeline — solo muestra progreso
       App.state._resumingBookId = book.id;
       App.go('processing');
       return;

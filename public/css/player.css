@@ -7,7 +7,11 @@
 /* ── Contenedor raíz: grid de 4 filas — header / tabs / lyrics(1fr) / controls ── */
 .player {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* Deja espacio abajo para la nav bar (64px + safe-area) */
+  bottom: calc(64px + env(safe-area-inset-bottom));
   background: var(--player-bg-fallback);
   background: var(--player-bg);
   color: var(--color-text);
@@ -16,9 +20,15 @@
   overflow: hidden;
   z-index: var(--z-base);
 
-  /* Alturas dinámicas para que el pill 'volver al en vivo' sepa cuánto subir */
+  /* Alturas dinámicas */
   --header-h: calc(64px + env(safe-area-inset-top));
-  --controls-h: calc(156px + env(safe-area-inset-bottom));
+  --controls-h: 156px;
+}
+
+/* Cuando estamos en player, los controls no necesitan safe-area-inset-bottom
+   (ya está fuera del .player), pero sí algo de padding-bottom limpio */
+.player-controls {
+  padding-bottom: var(--space-5);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
