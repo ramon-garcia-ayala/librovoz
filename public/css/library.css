@@ -14,7 +14,7 @@
   background: var(--color-bg);
   padding: var(--space-6);
   padding-top: max(var(--space-6), env(safe-area-inset-top));
-  padding-bottom: calc(72px + var(--space-4));
+  padding-bottom: calc(80px + env(safe-area-inset-bottom));
 }
 
 .library-header {
@@ -336,26 +336,65 @@
   border: none;
   color: var(--color-text-tertiary);
   font-size: 11px;
-  font-weight: var(--font-weight-regular);
+  font-weight: var(--font-weight-medium);
   font-family: var(--font-family);
   cursor: pointer;
-  transition: color var(--dur-base) var(--ease-glass);
+  transition: color var(--dur-base) var(--ease-glass),
+              transform var(--dur-base) var(--ease-glass);
   text-decoration: none;
-  padding: 0;
+  padding: 0 8px;
   letter-spacing: var(--tracking-base);
+  min-height: 48px;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 
 .nav-bar-item svg {
   width: 24px;
   height: 24px;
+  transition: transform var(--dur-base) var(--ease-glass);
+}
+
+.nav-bar-item:hover {
+  color: var(--color-text);
 }
 
 .nav-bar-item.active {
   color: var(--color-accent);
 }
 
+.nav-bar-item.active svg {
+  transform: translateY(-1px);
+}
+
+/* Indicador visual sutil arriba de la tab activa */
+.nav-bar-item.active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 3px;
+  background: var(--color-accent);
+  border-radius: 0 0 3px 3px;
+  animation: nav-pop 0.4s var(--ease-glass);
+}
+
+@keyframes nav-pop {
+  from { opacity: 0; transform: translateX(-50%) translateY(-4px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Feedback al tap (haptic visual) */
+.nav-bar-item.tapping,
 .nav-bar-item:active {
-  color: var(--color-accent);
+  transform: scale(0.94);
+}
+
+.nav-bar-item.tapping svg {
+  transform: translateY(-2px) scale(1.05);
 }
 
 /* ── Responsive ───────────────────────────────────────────────────────── */
