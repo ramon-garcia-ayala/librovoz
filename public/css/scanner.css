@@ -326,6 +326,39 @@
   animation: pulse-danger 1.2s ease-in-out infinite;
 }
 
+/* Toggle modo 2 páginas (chip glass) */
+.scanner-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.85);
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: var(--font-weight-medium);
+  font-family: var(--font-family);
+  cursor: pointer;
+  transition: transform var(--dur-base) var(--ease-glass),
+              border-color var(--dur-base) var(--ease-glass),
+              background var(--dur-base) var(--ease-glass);
+  -webkit-tap-highlight-color: transparent;
+  margin-left: var(--space-2);
+}
+
+.scanner-mode-toggle:active {
+  transform: scale(0.96);
+}
+
+.scanner-mode-toggle.spread-active {
+  background: rgba(var(--accent-rgb), 0.30);
+  border-color: rgba(var(--accent-rgb), 0.6);
+  color: #FFFFFF;
+}
+
 @keyframes pulse-danger {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.05); }

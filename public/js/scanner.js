@@ -5,6 +5,7 @@ const Scanner = {
   video: null,
   capturing: false,
   cameraAvailable: false,
+  spreadMode: false, // false = 1 página; true = libro abierto, splittear en 2
 
   async init() {
     // Chequeo de cuota: si no hay libros disponibles, redirigir a paywall
@@ -192,36 +193,77 @@ const Scanner = {
 
   // ── Procesar captura ────────────────────────────────────────────────
   async processCapture(base64) {
-    switch (this.phase) {
-      case 'cover':
-        App.state.coverImage = base64;
-        this.addThumbnailFast(base64);
-        this.showNextButton();
-        this.setPhaseTitle('Portada capturada');
-        break;
-
-      case 'index':
-        if (App.state.indexPages.length >= LIMITS.MAX_INDEX_PAGES) {
-          App.showToast(`Máximo ${LIMITS.MAX_INDEX_PAGES} páginas de índice. Toca Siguiente para continuar.`, 'error');
-          return;
-        }
-        App.state.indexPages.push(base64);
-        this.addThumbnailFast(base64);
-        this.updatePhaseCounter();
-        this.showNextButton();
-        break;
-
-      case 'pages':
-        if (App.state.bookPages.length >= LIMITS.MAX_CONTENT_PAGES) {
-          App.showToast(`Límite alcanzado: ${LIMITS.MAX_CONTENT_PAGES} páginas. Toca Siguiente para procesar.`, 'error');
-          return;
-        }
-        App.state.bookPages.push(base64);
-        this.addThumbnailFast(base64);
-        this.updatePhaseCounter();
-        this.showNextButton();
-        break;
+    if (this.phase === 'cover') {
+      // Portada: nunca se splittea
+      App.state.coverImage = base64;
+      this.addThumbnailFast(base64);
+      this.showNextButton();
+      this.setPhaseTitle('Portada capturada');
+      return;
     }
+
+    // Para index y pages: si modo spread, dividir en 2
+    if (this.spreadMode) {
+      try {
+        const halves = await Utils.splitPageSpread(base64);
+        for (const half of halves) {
+          const added = this.pushPage(half);
+          if (!added) break; // límite alcanzado a mitad del spread
+        }
+      } catch (err) {
+        console.error('Error split:', err);
+        this.pushPage(base64);
+      }
+    } else {
+      this.pushPage(base64);
+    }
+  },
+
+  // Push una imagen individual a la fase actual (index o pages).
+  // Retorna true si se agregó, false si el límite estaba alcanzado.
+  pushPage(base64) {
+    if (this.phase === 'index') {
+      if (App.state.indexPages.length >= LIMITS.MAX_INDEX_PAGES) {
+        App.showToast(`Máximo ${LIMITS.MAX_INDEX_PAGES} páginas de índice. Toca Siguiente para continuar.`, 'error');
+        return false;
+      }
+      App.state.indexPages.push(base64);
+      this.addThumbnailFast(base64);
+      this.updatePhaseCounter();
+      this.showNextButton();
+      return true;
+    }
+    if (this.phase === 'pages') {
+      if (App.state.bookPages.length >= LIMITS.MAX_CONTENT_PAGES) {
+        App.showToast(`Límite alcanzado: ${LIMITS.MAX_CONTENT_PAGES} páginas. Toca Siguiente para procesar.`, 'error');
+        return false;
+      }
+      App.state.bookPages.push(base64);
+      this.addThumbnailFast(base64);
+      this.updatePhaseCounter();
+      this.showNextButton();
+      return true;
+    }
+    return false;
+  },
+
+  // ── Toggle modo 2 páginas (spread) ────────────────────────────────────
+  toggleSpreadMode() {
+    this.spreadMode = !this.spreadMode;
+    this.updateSpreadToggleUI();
+    if (navigator.vibrate) navigator.vibrate(15);
+  },
+
+  updateSpreadToggleUI() {
+    const btn = document.getElementById('btn-spread-mode');
+    const label = document.getElementById('spread-mode-label');
+    if (!btn) return;
+    btn.classList.toggle('spread-active', this.spreadMode);
+    if (label) label.textContent = this.spreadMode ? '2 páginas' : '1 página';
+
+    // Visible solo en fases pages e index
+    const visible = this.phase === 'pages' || this.phase === 'index';
+    btn.style.display = visible ? 'inline-flex' : 'none';
   },
 
   // ── Contador con estado warning/error según % usado ────────────────
@@ -307,6 +349,7 @@ const Scanner = {
     if (thumbs) thumbs.innerHTML = '';
     if (countEl) countEl.style.display = 'none';
     this.hideNextButton();
+    this.updateSpreadToggleUI();
 
     // Steps indicator
     const stepCover = document.getElementById('step-cover');

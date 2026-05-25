@@ -27,6 +27,41 @@ const Utils = {
     });
   },
 
+  // Dividir foto de un "spread" (libro abierto, 2 páginas) en 2 mitades base64.
+  // Auto-detecta orientación: landscape → izq/der, portrait → arriba/abajo.
+  splitPageSpread(base64, quality = 0.85) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const { width, height } = img;
+        const isLandscape = width > height * 1.05;
+        // Cuadrado o cuadrado-ish → corte vertical por defecto
+
+        const makeHalf = (sx, sy, sw, sh) => {
+          const c = document.createElement('canvas');
+          c.width = sw;
+          c.height = sh;
+          c.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+          return c.toDataURL('image/jpeg', quality).split(',')[1];
+        };
+
+        let firstHalf, secondHalf;
+        if (isLandscape) {
+          const half = Math.floor(width / 2);
+          firstHalf = makeHalf(0, 0, half, height);                 // izquierda
+          secondHalf = makeHalf(half, 0, width - half, height);     // derecha
+        } else {
+          const half = Math.floor(height / 2);
+          firstHalf = makeHalf(0, 0, width, half);                  // arriba
+          secondHalf = makeHalf(0, half, width, height - half);     // abajo
+        }
+        resolve([firstHalf, secondHalf]);
+      };
+      img.onerror = () => reject(new Error('No se pudo cargar la imagen para dividir'));
+      img.src = `data:image/jpeg;base64,${base64}`;
+    });
+  },
+
   // Capturar frame de video como base64
   captureVideoFrame(video) {
     const canvas = document.createElement('canvas');
