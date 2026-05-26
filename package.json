@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "icons": "node scripts/generate-icons.js"
+    "icons": "node scripts/generate-icons.js",
+    "audit": "node scripts/agent-audit.js",
+    "audit:watch": "node scripts/agent-audit.js --watch"
   },
   "engines": {
     "node": ">=18"
