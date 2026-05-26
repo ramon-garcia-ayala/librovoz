@@ -11,9 +11,10 @@
  *   node scripts/agent-audit.js --watch  # cada N minutos (default 60)
  *
  * Configuración por env:
- *   ANTHROPIC_API_KEY  (requerida)
- *   AUDIT_INTERVAL_MIN (default 60)
- *   AUDIT_MAX_TOKENS_INPUT (default 12000)
+ *   AUDIT_ANTHROPIC_API_KEY  (preferida — para trackear gasto separado del app)
+ *   ANTHROPIC_API_KEY        (fallback si la específica no existe)
+ *   AUDIT_INTERVAL_MIN       (default 60)
+ *   AUDIT_MAX_TOKENS_INPUT   (default 12000)
  */
 
 require('dotenv').config();
@@ -27,12 +28,20 @@ const PROPOSALS_FILE = path.join(ROOT, 'AGENT_PROPOSALS.md');
 const MODEL = 'claude-haiku-4-5-20251001';
 const MAX_INPUT_CHARS = parseInt(process.env.AUDIT_MAX_TOKENS_INPUT || '12000', 10) * 4;
 
-if (!process.env.ANTHROPIC_API_KEY) {
-  console.error('Falta ANTHROPIC_API_KEY en .env');
+// Preferir API key específica del agente; si no existe, caer a la principal
+const apiKey = process.env.AUDIT_ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
+const usingDedicatedKey = !!process.env.AUDIT_ANTHROPIC_API_KEY;
+
+if (!apiKey) {
+  console.error('Falta AUDIT_ANTHROPIC_API_KEY (preferida) o ANTHROPIC_API_KEY en .env');
   process.exit(1);
 }
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+if (!usingDedicatedKey) {
+  console.warn('⚠️  Usando ANTHROPIC_API_KEY (compartida con la app). Para separar gasto, configura AUDIT_ANTHROPIC_API_KEY.');
+}
+
+const anthropic = new Anthropic({ apiKey });
 
 // ── Recolectar contexto del proyecto ────────────────────────────────────
 function readFileSafe(filePath, maxChars = 3000) {
