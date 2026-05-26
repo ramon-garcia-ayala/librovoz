@@ -20,14 +20,20 @@ const Tutorial = {
     const slider = document.getElementById('tutorial-slider');
     if (!slider) return;
 
+    let startX = 0, startY = 0;
+
     slider.addEventListener('touchstart', (e) => {
-      this.touchStartX = e.touches[0].clientX;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
     }, { passive: true });
 
     slider.addEventListener('touchend', (e) => {
-      const diff = this.touchStartX - e.changedTouches[0].clientX;
-      if (Math.abs(diff) > 50) {
-        if (diff > 0) this.next();
+      const diffX = startX - e.changedTouches[0].clientX;
+      const diffY = startY - e.changedTouches[0].clientY;
+      // Solo dispara si el swipe es CLARAMENTE horizontal (no scroll vertical
+      // accidental). Threshold subido a 80px + diffX debe dominar diffY 1.5×.
+      if (Math.abs(diffX) > 80 && Math.abs(diffX) > Math.abs(diffY) * 1.5) {
+        if (diffX > 0) this.next();
         else this.prev();
       }
     }, { passive: true });
@@ -38,12 +44,25 @@ const Tutorial = {
     const dots = document.querySelectorAll('.dot');
     const btnNext = document.getElementById('btn-next');
 
-    if (track) {
-      track.style.transform = `translateX(-${this.currentStep * 100}%)`;
+    // Guard defensivo: si el DOM crítico no está montado, no continuar
+    // y dejar log para debugging
+    if (!track) {
+      console.warn('[Tutorial] DOM no está montado aún, updateUI() abortado');
+      return;
     }
 
+    track.style.transform = `translateX(-${this.currentStep * 100}%)`;
+
     dots.forEach((dot, i) => {
-      dot.classList.toggle('active', i === this.currentStep);
+      const isActive = i === this.currentStep;
+      dot.classList.toggle('active', isActive);
+      // Accesibilidad WCAG 2.1 AA: lectores de pantalla anuncian el paso actual
+      if (isActive) {
+        dot.setAttribute('aria-current', 'page');
+      } else {
+        dot.removeAttribute('aria-current');
+      }
+      dot.setAttribute('aria-label', `Paso ${i + 1} de ${this.totalSteps}`);
     });
 
     if (btnNext) {
